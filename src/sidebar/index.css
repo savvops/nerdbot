@@ -1,0 +1,264 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+.dark {
+  --nb-bg: 17 19 24;
+  --nb-surface: 24 27 34;
+  --nb-elevated: 32 36 45;
+  --nb-border: 48 53 65;
+  --nb-ink: 232 234 240;
+  --nb-muted: 156 163 178;
+  --nb-soft: 110 117 132;
+  --nb-accent: 138 164 255;
+  --nb-accent-soft: 79 109 220;
+  --nb-success: 74 222 128;
+  --nb-danger: 248 113 113;
+}
+
+html.light {
+  --nb-bg: 252 252 253;
+  --nb-surface: 255 255 255;
+  --nb-elevated: 245 246 250;
+  --nb-border: 222 226 234;
+  --nb-ink: 24 27 34;
+  --nb-muted: 90 96 110;
+  --nb-soft: 140 147 162;
+  --nb-accent: 79 109 220;
+  --nb-accent-soft: 138 164 255;
+  --nb-success: 22 163 74;
+  --nb-danger: 220 38 38;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: rgb(var(--nb-bg));
+  color: rgb(var(--nb-ink));
+  overscroll-behavior: none;
+}
+
+/* Brand gradient for the Nerdbot mark */
+.nb-brand-gradient {
+  background: linear-gradient(135deg, #8aa4ff 0%, #c089ff 50%, #ff8ad1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nb-brand-orb {
+  background: conic-gradient(
+    from 220deg,
+    #8aa4ff 0%,
+    #c089ff 30%,
+    #ff8ad1 55%,
+    #ffd089 80%,
+    #8aa4ff 100%
+  );
+  filter: blur(0.4px);
+}
+
+/* Scrollbars (thin, themed) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--nb-border) / 0.7);
+  border: 2px solid rgb(var(--nb-bg));
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--nb-soft) / 0.9);
+}
+
+/* Subtle focus ring */
+:focus-visible {
+  outline: 2px solid rgb(var(--nb-accent) / 0.7);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+textarea,
+input,
+button {
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+textarea:focus,
+input:focus,
+button:focus {
+  outline: none;
+}
+
+/* Prose / markdown */
+.nb-prose {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: rgb(var(--nb-ink));
+}
+.nb-prose p {
+  margin: 0 0 0.85em;
+}
+.nb-prose p:last-child {
+  margin-bottom: 0;
+}
+.nb-prose h1,
+.nb-prose h2,
+.nb-prose h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 1.2em 0 0.4em;
+}
+.nb-prose h1 {
+  font-size: 1.25rem;
+}
+.nb-prose h2 {
+  font-size: 1.1rem;
+}
+.nb-prose h3 {
+  font-size: 1rem;
+  color: rgb(var(--nb-ink));
+}
+.nb-prose ul,
+.nb-prose ol {
+  padding-left: 1.25rem;
+  margin: 0.4em 0 0.85em;
+}
+.nb-prose li {
+  margin: 0.18em 0;
+}
+.nb-prose ul li::marker {
+  color: rgb(var(--nb-accent));
+}
+.nb-prose a {
+  color: rgb(var(--nb-accent));
+  text-underline-offset: 3px;
+}
+.nb-prose a:hover {
+  text-decoration: underline;
+}
+.nb-prose blockquote {
+  border-left: 3px solid rgb(var(--nb-accent) / 0.55);
+  padding: 0.1em 0 0.1em 0.9em;
+  color: rgb(var(--nb-muted));
+  margin: 0.6em 0;
+}
+.nb-prose code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.86em;
+  padding: 0.12em 0.38em;
+  border-radius: 6px;
+  background: rgb(var(--nb-elevated));
+  border: 1px solid rgb(var(--nb-border) / 0.7);
+}
+.nb-prose pre,
+.nb-codeblock {
+  background: #0d1117;
+  border: 1px solid rgb(var(--nb-border));
+  border-radius: 12px;
+  padding: 0.85em 1em;
+  overflow-x: auto;
+  margin: 0.7em 0;
+  font-size: 0.86em;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+html.light .nb-prose pre,
+html.light .nb-codeblock {
+  background: #f6f8fa;
+}
+.nb-prose pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.nb-prose hr {
+  border: 0;
+  border-top: 1px solid rgb(var(--nb-border));
+  margin: 1.2em 0;
+}
+.nb-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.7em 0;
+  font-size: 0.92em;
+}
+.nb-prose th,
+.nb-prose td {
+  border: 1px solid rgb(var(--nb-border));
+  padding: 0.45em 0.7em;
+  text-align: left;
+}
+.nb-prose th {
+  background: rgb(var(--nb-elevated));
+  font-weight: 600;
+}
+
+/* Cursor blink for streaming */
+.nb-cursor::after {
+  content: '▍';
+  margin-left: 2px;
+  color: rgb(var(--nb-accent));
+  animation: nbBlink 1s steps(2) infinite;
+}
+@keyframes nbBlink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Typing dots */
+.nb-dot {
+  width: 5px;
+  height: 5px;
+  background: rgb(var(--nb-accent));
+  border-radius: 50%;
+  display: inline-block;
+  animation: nbBounce 1.2s infinite;
+}
+.nb-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.nb-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes nbBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* Glow background for hero */
+.nb-hero-glow {
+  background:
+    radial-gradient(700px 320px at 50% -120px, rgb(138 164 255 / 0.18), transparent 70%),
+    radial-gradient(500px 240px at 100% 80%, rgb(192 137 255 / 0.12), transparent 70%);
+}
