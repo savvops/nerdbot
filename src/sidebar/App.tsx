@@ -61,7 +61,9 @@ import { approxTokens, formatCost } from '../services/tokens';
 import { makeStreamBuffer } from '../services/streamBuffer';
 import { queryKnowledge, knowledgeStats, listFolders, getFolder, deleteFolder, type KnowledgeFolder } from '../services/rag';
 import { fetchUrlContent, extractUrl } from '../services/scraper';
-import type { Attachment, Chat, Message, PageContext, Settings, Skill } from '../services/types';
+import { loadSouls, createSoul, updateSoul, deleteSoul } from '../services/souls';
+import { memoryProvider } from '../services/memoryProvider';
+import type { Attachment, Chat, Message, PageContext, Settings, Skill, Soul } from '../services/types';
 
 const SYSTEM_BASE = `You are Nerdbot, a friendly, sharp browser-side assistant.
 Be concise and direct. Prefer markdown with headings, bullets, and code blocks where helpful.
@@ -84,6 +86,7 @@ export default function App() {
   const [history, setHistory] = useState<Chat[]>([]);
   const [pinned, setPinned] = useState<PinnedNote[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [souls, setSouls] = useState<Soul[]>([]);
 
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -122,18 +125,20 @@ export default function App() {
   // Bootstrap
   useEffect(() => {
     (async () => {
-      const [s, c, h, p, sk] = await Promise.all([
+      const [s, c, h, p, sk, so] = await Promise.all([
         loadSettings(),
         loadCurrent(),
         loadHistory(),
         loadPinned(),
         loadSkills(),
+        loadSouls(),
       ]);
       setSettings(s);
       setChat(c);
       setHistory(h);
       setPinned(p);
       setSkills(sk);
+      setSouls(so);
       // Check knowledge base stats
       const stats = await knowledgeStats();
       setKnowledgeCount(stats.chunks);
@@ -293,8 +298,14 @@ export default function App() {
   }, []);
 
   const buildSystemPrompt = useCallback(
-    (skill: Skill | null, includePages: PageContext[]) => {
+    (skill: Skill | null, includePages: PageContext[], soul: Soul | null, memorySection: string) => {
       const parts = [SYSTEM_BASE];
+      if (soul) {
+        parts.push(`\n[Active persona: ${soul.name}]\n${soul.systemPrompt}`);
+      }
+      if (memorySection) {
+        parts.push(`\n${memorySection}`);
+      }
       if (skill) {
         const args = skill.lastArgs ?? {};
         const filled = applySkillArgs(skill.instructions, args);
@@ -436,7 +447,11 @@ export default function App() {
         }
       }
 
-      let sys = buildSystemPrompt(activeSkill, includedPages);
+      const activeSoul = settings.activeSoulId
+        ? souls.find((s) => s.id === settings.activeSoulId) ?? null
+        : null;
+      const memorySection = await memoryProvider.buildSystemPromptSection();
+      let sys = buildSystemPrompt(activeSkill, includedPages, activeSoul, memorySection);
       if (projectPrompt) sys += projectPrompt;
       if (ragContext) sys += ragContext;
       if (linkContent) sys += linkContent;
@@ -552,12 +567,25 @@ export default function App() {
         setBusy(false);
       }
     },
-    [activeSkill, attachments, buildSystemPrompt, chat, extraTabIds, input, settings, shareEnabled, knowledgeEnabled, knowledgeCount, projects]
+    [activeSkill, attachments, buildSystemPrompt, chat, extraTabIds, input, settings, shareEnabled, knowledgeEnabled, knowledgeCount, projects, souls]
   );
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
   }, []);
+
+  const handleRewind = useCallback(
+    (id: string) => {
+      const idx = chat.messages.findIndex((m) => m.id === id);
+      if (idx < 0) return;
+      const dropping = chat.messages.length - (idx + 1);
+      if (dropping === 0) return; // nothing after this message
+      if (!window.confirm(`Rewind here? ${dropping} message${dropping !== 1 ? 's' : ''} after this point will be discarded.`)) return;
+      const rewound = truncateAfter(chat, id, false);
+      setChat(rewound);
+    },
+    [chat]
+  );
 
   const handleRegenerate = useCallback(
     async (assistantId: string) => {
@@ -700,6 +728,7 @@ export default function App() {
                   const msg = chat.messages.find((x) => x.id === id);
                   if (msg) setEditing(msg);
                 }}
+                onRewind={handleRewind}
                 onRegenerate={handleRegenerate}
                 onPin={handlePin}
                 isLastAssistant={m.id === lastAssistantId}
@@ -827,6 +856,21 @@ export default function App() {
         settings={settings}
         onChange={persistSettings}
         onClose={() => setSettingsOpen(false)}
+        souls={souls}
+        onSoulsChange={setSouls}
+        onCreateSoul={async (input) => {
+          const soul = await createSoul(input);
+          setSouls(await loadSouls());
+          return soul;
+        }}
+        onUpdateSoul={async (id, patch) => {
+          await updateSoul(id, patch);
+          setSouls(await loadSouls());
+        }}
+        onDeleteSoul={async (id) => {
+          await deleteSoul(id);
+          setSouls(await loadSouls());
+        }}
       />
 
       <AddSkillModal

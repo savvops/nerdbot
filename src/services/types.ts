@@ -35,9 +35,20 @@ export interface Chat {
   updatedAt: number;
   /** Optional — when set, this chat lives inside a Project (= KB folder). */
   projectId?: string;
+  /** Active persona soul for this chat. */
+  soulId?: string;
 }
 
-export type ProviderId = 'gemini' | 'openai' | 'openrouter' | 'lmstudio' | 'ollama';
+export interface Soul {
+  id: string;
+  name: string;
+  emoji: string;
+  systemPrompt: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ProviderId = 'gemini' | 'openai' | 'openrouter' | 'lmstudio' | 'ollama' | 'anthropic';
 export type SpeedMode = 'fast' | 'quality';
 
 export interface ProviderConfig {
@@ -66,6 +77,8 @@ export interface Settings {
   ragChunks: number;
   /** Max context tokens before auto-compressing old messages. 0 = no limit. */
   maxContextTokens: number;
+  /** Active persona soul ID — applied globally to all chats. */
+  activeSoulId?: string;
 }
 
 export interface SkillArgument {

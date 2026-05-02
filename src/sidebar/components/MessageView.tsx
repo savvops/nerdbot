@@ -2,7 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import type { LucideIcon } from 'lucide-react';
-import { Check, Copy, Edit3, Pin, RefreshCw, Volume2, VolumeX } from 'lucide-react';
+import { Check, Copy, Edit3, Pin, RefreshCw, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import 'highlight.js/styles/github-dark.css';
 
@@ -18,6 +18,7 @@ interface Props {
   suggestions?: Skill[];
   onSuggest?: (skill: Skill) => void;
   onEdit?: (id: string) => void;
+  onRewind?: (id: string) => void;
   onRegenerate?: (id: string) => void;
   onPin?: (id: string) => void;
   isLastAssistant?: boolean;
@@ -29,6 +30,7 @@ export default function MessageView({
   suggestions,
   onSuggest,
   onEdit,
+  onRewind,
   onRegenerate,
   onPin,
   isLastAssistant,
@@ -71,15 +73,26 @@ export default function MessageView({
           <div className="px-4 py-2.5 rounded-2xl rounded-br-md bg-elevated text-ink text-[14px] leading-relaxed border border-border">
             {message.content}
           </div>
-          {onEdit && (
-            <button
-              onClick={() => onEdit(message.id)}
-              className="opacity-0 group-hover:opacity-100 text-[10.5px] text-muted hover:text-ink flex items-center gap-1 transition-opacity"
-              title="Edit and resend"
-            >
-              <Edit3 size={10} /> Edit
-            </button>
-          )}
+          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-opacity">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(message.id)}
+                className="text-[10.5px] text-muted hover:text-ink flex items-center gap-1"
+                title="Edit and resend"
+              >
+                <Edit3 size={10} /> Edit
+              </button>
+            )}
+            {onRewind && (
+              <button
+                onClick={() => onRewind(message.id)}
+                className="text-[10.5px] text-muted hover:text-ink flex items-center gap-1"
+                title="Rewind to here"
+              >
+                <RotateCcw size={10} /> Rewind
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

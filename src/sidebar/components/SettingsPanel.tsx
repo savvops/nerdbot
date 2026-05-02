@@ -1,19 +1,86 @@
-import { useState } from 'react';
-import { ExternalLink, Eye, EyeOff, X } from 'lucide-react';
-import type { ProviderId, Settings } from '../../services/types';
+import { useState, useEffect } from 'react';
+import { ExternalLink, Eye, EyeOff, X, Plus, Trash2, Check, Pencil } from 'lucide-react';
+import type { ProviderId, Settings, Soul } from '../../services/types';
 import { PROVIDER_DOCS, PROVIDER_LABELS } from '../../services/config';
+import { memoryProvider } from '../../services/memoryProvider';
+import { DEFAULT_SOUL_PROMPT } from '../../services/souls';
 
 interface Props {
   open: boolean;
   settings: Settings;
   onChange: (s: Settings) => void;
   onClose: () => void;
+  souls: Soul[];
+  onCreateSoul: (input: Pick<Soul, 'name' | 'emoji' | 'systemPrompt'>) => Promise<Soul>;
+  onUpdateSoul: (id: string, patch: Partial<Pick<Soul, 'name' | 'emoji' | 'systemPrompt'>>) => Promise<void>;
+  onDeleteSoul: (id: string) => Promise<void>;
+  onSoulsChange: (souls: Soul[]) => void;
 }
 
-const PROVIDER_ORDER: ProviderId[] = ['gemini', 'openai', 'openrouter', 'lmstudio', 'ollama'];
+const PROVIDER_ORDER: ProviderId[] = ['gemini', 'openai', 'openrouter', 'anthropic', 'lmstudio', 'ollama'];
 
-export default function SettingsPanel({ open, settings, onChange, onClose }: Props) {
+export default function SettingsPanel({
+  open, settings, onChange, onClose,
+  souls, onCreateSoul, onUpdateSoul, onDeleteSoul,
+}: Props) {
   const [showKey, setShowKey] = useState(false);
+
+  // Memory state
+  const [facts, setFacts] = useState('');
+  const [userProfile, setUserProfile] = useState('');
+  const [factsSaved, setFactsSaved] = useState(false);
+  const [userSaved, setUserSaved] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    memoryProvider.loadFacts().then(setFacts);
+    memoryProvider.loadUserProfile().then(setUserProfile);
+  }, [open]);
+
+  const saveFacts = async () => {
+    await memoryProvider.saveFacts(facts);
+    setFactsSaved(true);
+    setTimeout(() => setFactsSaved(false), 1500);
+  };
+
+  const saveUserProfile = async () => {
+    await memoryProvider.saveUserProfile(userProfile);
+    setUserSaved(true);
+    setTimeout(() => setUserSaved(false), 1500);
+  };
+
+  // Souls edit state
+  const [editingId, setEditingId] = useState<string | 'new' | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmoji, setEditEmoji] = useState('');
+  const [editPrompt, setEditPrompt] = useState('');
+
+  const beginEdit = (soul: Soul) => {
+    setEditingId(soul.id);
+    setEditName(soul.name);
+    setEditEmoji(soul.emoji);
+    setEditPrompt(soul.systemPrompt);
+  };
+
+  const beginNew = () => {
+    setEditingId('new');
+    setEditName('');
+    setEditEmoji('✨');
+    setEditPrompt(DEFAULT_SOUL_PROMPT);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const commitEdit = async () => {
+    if (!editName.trim() || !editPrompt.trim()) return;
+    if (editingId === 'new') {
+      await onCreateSoul({ name: editName.trim(), emoji: editEmoji || '✨', systemPrompt: editPrompt });
+    } else if (editingId) {
+      await onUpdateSoul(editingId, { name: editName.trim(), emoji: editEmoji || '✨', systemPrompt: editPrompt });
+    }
+    setEditingId(null);
+  };
+
   if (!open) return null;
   const provider = settings.providers[settings.activeProvider];
 
@@ -243,6 +310,143 @@ export default function SettingsPanel({ open, settings, onChange, onClose }: Pro
             </div>
           </div>
 
+          {/* ── Personas (Souls) ── */}
+          <div className="border-t border-border pt-4">
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">Personas</div>
+            <div className="space-y-1.5">
+              {/* None option */}
+              <button
+                onClick={() => onChange({ ...settings, activeSoulId: undefined })}
+                className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left text-[12.5px] transition-colors ${
+                  !settings.activeSoulId
+                    ? 'bg-accent/15 border-accent/50 text-ink'
+                    : 'bg-bg border-border text-muted hover:text-ink'
+                }`}
+              >
+                <span>🤖</span>
+                <span className="flex-1">Default (no persona)</span>
+                {!settings.activeSoulId && <Check size={12} className="text-accent" />}
+              </button>
+
+              {souls.map((soul) =>
+                editingId === soul.id ? (
+                  <SoulEditForm
+                    key={soul.id}
+                    name={editName}
+                    emoji={editEmoji}
+                    prompt={editPrompt}
+                    onName={setEditName}
+                    onEmoji={setEditEmoji}
+                    onPrompt={setEditPrompt}
+                    onSave={commitEdit}
+                    onCancel={cancelEdit}
+                  />
+                ) : (
+                  <div
+                    key={soul.id}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[12.5px] transition-colors ${
+                      settings.activeSoulId === soul.id
+                        ? 'bg-accent/15 border-accent/50'
+                        : 'bg-bg border-border'
+                    }`}
+                  >
+                    <button
+                      className="flex items-center gap-2 flex-1 text-left min-w-0"
+                      onClick={() => onChange({ ...settings, activeSoulId: soul.id })}
+                    >
+                      <span>{soul.emoji}</span>
+                      <span className="flex-1 truncate text-ink">{soul.name}</span>
+                      {settings.activeSoulId === soul.id && <Check size={12} className="text-accent shrink-0" />}
+                    </button>
+                    <button
+                      onClick={() => beginEdit(soul)}
+                      className="p-1 text-muted hover:text-ink rounded"
+                      title="Edit"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await onDeleteSoul(soul.id);
+                        if (settings.activeSoulId === soul.id) onChange({ ...settings, activeSoulId: undefined });
+                      }}
+                      className="p-1 text-muted hover:text-red-400 rounded"
+                      title="Delete"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )
+              )}
+
+              {editingId === 'new' ? (
+                <SoulEditForm
+                  name={editName}
+                  emoji={editEmoji}
+                  prompt={editPrompt}
+                  onName={setEditName}
+                  onEmoji={setEditEmoji}
+                  onPrompt={setEditPrompt}
+                  onSave={commitEdit}
+                  onCancel={cancelEdit}
+                />
+              ) : (
+                <button
+                  onClick={beginNew}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-dashed border-border text-muted hover:text-ink text-[12px] transition-colors"
+                >
+                  <Plus size={12} /> New persona
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Memory ── */}
+          <div className="border-t border-border pt-4">
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">Memory</div>
+            <div className="text-[10.5px] text-soft mb-3">
+              Injected into every system prompt. Edit to teach Nerdbot persistent facts about you.
+            </div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11.5px] text-muted font-medium">Long-term facts</label>
+                  <button
+                    onClick={saveFacts}
+                    className="text-[11px] text-accent hover:underline flex items-center gap-1"
+                  >
+                    {factsSaved ? <><Check size={10} /> Saved</> : 'Save'}
+                  </button>
+                </div>
+                <textarea
+                  value={facts}
+                  onChange={(e) => setFacts(e.target.value)}
+                  rows={4}
+                  placeholder={"- Prefers TypeScript over JavaScript\n- Works on macOS\n- Uses Neovim"}
+                  className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[12px] outline-none resize-none font-mono"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11.5px] text-muted font-medium">User profile</label>
+                  <button
+                    onClick={saveUserProfile}
+                    className="text-[11px] text-accent hover:underline flex items-center gap-1"
+                  >
+                    {userSaved ? <><Check size={10} /> Saved</> : 'Save'}
+                  </button>
+                </div>
+                <textarea
+                  value={userProfile}
+                  onChange={(e) => setUserProfile(e.target.value)}
+                  rows={3}
+                  placeholder={"Senior full-stack engineer.\nBuilds browser extensions and AI tools.\nBlunt communication style preferred."}
+                  className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[12px] outline-none resize-none font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
           <Field label="Theme">
             <div className="grid grid-cols-3 gap-1.5">
               {(['dark', 'light', 'system'] as const).map((t) => (
@@ -276,6 +480,56 @@ export default function SettingsPanel({ open, settings, onChange, onClose }: Pro
         <div className="px-4 py-3 border-t border-border bg-bg text-[11px] text-muted">
           Settings sync to this browser only. Keys never leave your device.
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SoulEditForm({
+  name, emoji, prompt, onName, onEmoji, onPrompt, onSave, onCancel,
+}: {
+  name: string; emoji: string; prompt: string;
+  onName: (v: string) => void; onEmoji: (v: string) => void; onPrompt: (v: string) => void;
+  onSave: () => void; onCancel: () => void;
+}) {
+  return (
+    <div className="bg-elevated border border-border rounded-lg p-3 space-y-2">
+      <div className="flex gap-2">
+        <input
+          value={emoji}
+          onChange={(e) => onEmoji(e.target.value)}
+          maxLength={2}
+          className="w-10 text-center bg-bg border border-border rounded px-1 py-1.5 text-[14px] outline-none"
+          placeholder="✨"
+        />
+        <input
+          value={name}
+          onChange={(e) => onName(e.target.value)}
+          placeholder="Persona name"
+          className="flex-1 bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none"
+        />
+      </div>
+      <textarea
+        value={prompt}
+        onChange={(e) => onPrompt(e.target.value)}
+        rows={5}
+        placeholder="Describe how this persona should behave…"
+        className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12px] outline-none resize-none font-mono"
+      />
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={onCancel}
+          className="px-3 py-1.5 text-[12px] text-muted hover:text-ink border border-border rounded-lg"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onSave}
+          disabled={!name.trim() || !prompt.trim()}
+          className="px-3 py-1.5 text-[12px] bg-accent/20 border border-accent/40 text-ink rounded-lg hover:bg-accent/30 disabled:opacity-40"
+        >
+          Save persona
+        </button>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ export const PROVIDER_LABELS: Record<ProviderId, string> = {
   openrouter: 'OpenRouter',
   lmstudio: 'LM Studio',
   ollama: 'Ollama',
+  anthropic: 'Anthropic',
 };
 
 export const PROVIDER_DOCS: Record<ProviderId, string> = {
@@ -17,6 +18,7 @@ export const PROVIDER_DOCS: Record<ProviderId, string> = {
   openrouter: 'https://openrouter.ai/keys',
   lmstudio: 'https://lmstudio.ai',
   ollama: 'https://ollama.com',
+  anthropic: 'https://console.anthropic.com/settings/keys',
 };
 
 /** Rough $/1M tokens — used purely for the in-composer cost hint. */
@@ -26,6 +28,7 @@ export const PROVIDER_COST: Record<ProviderId, { fastIn: number; fastOut: number
   openrouter: { fastIn: 0.1, fastOut: 0.4, qualityIn: 3, qualityOut: 15 },
   lmstudio: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
   ollama: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
+  anthropic: { fastIn: 0.8, fastOut: 4, qualityIn: 3, qualityOut: 15 },
 };
 
 const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
@@ -72,6 +75,13 @@ const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
     fastModel: 'llama3.2:3b',
     qualityModel: 'llama3.1:8b',
   },
+  anthropic: {
+    id: 'anthropic',
+    apiKey: '',
+    baseUrl: 'https://api.anthropic.com/v1',
+    fastModel: 'claude-haiku-4-5-20251001',
+    qualityModel: 'claude-sonnet-4-6',
+  },
 });
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -114,9 +124,8 @@ export function activeProvider(settings: Settings): ProviderConfig {
 }
 
 export function isVisionCapable(settings: Settings): boolean {
-  // Gemini & OpenAI/OpenRouter major models support vision; LM Studio/Ollama depends on local model.
   const p = settings.activeProvider;
-  return p === 'gemini' || p === 'openai' || p === 'openrouter';
+  return p === 'gemini' || p === 'openai' || p === 'openrouter' || p === 'anthropic';
 }
 
 export function isSearchCapable(settings: Settings): boolean {
@@ -131,6 +140,7 @@ export const CONTEXT_WINDOW: Record<ProviderId, number> = {
   openrouter: 128_000,
   lmstudio: 32_000,
   ollama: 8_000,
+  anthropic: 200_000,
 };
 
 /** Get the effective max context tokens for the current settings.
