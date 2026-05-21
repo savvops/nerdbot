@@ -151,9 +151,7 @@ export async function deleteByDocId(docId: string): Promise<void> {
   const store = await getStore();
 
   const searchOpts: any = {
-    mode: 'fulltext',
-    term: '',
-    where: { docId: { eq: docId } },
+    where: { docId },
     limit: 10000,
   };
 
@@ -171,9 +169,7 @@ export async function deleteByFolderId(folderId: string): Promise<void> {
   const store = await getStore();
 
   const searchOpts: any = {
-    mode: 'fulltext',
-    term: '',
-    where: { folderId: { eq: folderId } },
+    where: { folderId },
     limit: 10000,
   };
 

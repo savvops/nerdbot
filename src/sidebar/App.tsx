@@ -27,6 +27,7 @@ import {
   loadPinned,
   pinMessage,
   restoreFromHistory,
+  saveChatToHistory,
   saveCurrent,
   truncateAfter,
   unpinNote,
@@ -36,6 +37,7 @@ import {
 import {
   activeProvider,
   getMaxContext,
+  hasNativeSearch,
   isSearchCapable,
   isVisionCapable,
   loadSettings,
@@ -60,7 +62,7 @@ import { captureScreenshotAttachment, fileToAttachment } from '../services/attac
 import { approxTokens, formatCost } from '../services/tokens';
 import { makeStreamBuffer } from '../services/streamBuffer';
 import { queryKnowledge, knowledgeStats, listFolders, getFolder, deleteFolder, type KnowledgeFolder } from '../services/rag';
-import { fetchUrlContent, extractUrl } from '../services/scraper';
+import { fetchUrlContent, extractUrl, searchWeb, extractSearchQuery } from '../services/scraper';
 import { loadSouls, createSoul, updateSoul, deleteSoul } from '../services/souls';
 import { memoryProvider } from '../services/memoryProvider';
 import type { Attachment, Chat, Message, PageContext, Settings, Skill, Soul } from '../services/types';
@@ -69,7 +71,7 @@ const SYSTEM_BASE = `You are Nerdbot, a friendly, sharp browser-side assistant.
 Be concise and direct. Prefer markdown with headings, bullets, and code blocks where helpful.
 If a page is shared, you may use it as context — quote sparingly, never invent content not present.
 If the Page Content is empty, you must explicitly state that you cannot read the page rather than guessing its contents.
-If web search results are provided, cite the page titles inline naturally.`;
+When web search results appear in your context, you have live internet access for this query. Always answer using those results and cite sources.`;
 
 interface SendOptions {
   /** Override user-message content (used by edit/regenerate). */
@@ -163,6 +165,17 @@ export default function App() {
         chrome.storage.local.remove(['nerdbot.quickQueue.v1']);
       }
     });
+
+    const listener = (message: any) => {
+      if (message?.type === 'QUICK_CHAT_QUEUE' && message?.payload?.text) {
+        setInput(message.payload.text);
+        chrome.storage.local.remove(['nerdbot.quickQueue.v1']);
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+    };
   }, []);
 
   // Refresh page context periodically
@@ -229,11 +242,16 @@ export default function App() {
     [handleNewChat]
   );
 
-  const handlePickFromHistory = useCallback(async (id: string) => {
-    const restored = await restoreFromHistory(id);
-    if (restored) setChat(restored);
-    setDrawerOpen(false);
-  }, []);
+  const handlePickFromHistory = useCallback(
+    async (id: string) => {
+      await saveChatToHistory(chat);
+      const restored = await restoreFromHistory(id);
+      if (restored) setChat(restored);
+      setHistory(await loadHistory());
+      setDrawerOpen(false);
+    },
+    [chat]
+  );
 
   const handleDeleteHistory = useCallback(async (id: string) => {
     await deleteFromHistory(id);
@@ -299,7 +317,10 @@ export default function App() {
 
   const buildSystemPrompt = useCallback(
     (skill: Skill | null, includePages: PageContext[], soul: Soul | null, memorySection: string) => {
-      const parts = [SYSTEM_BASE];
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+      const parts = [`Today is ${dateStr}, ${timeStr}.\n\n${SYSTEM_BASE}`];
       if (soul) {
         parts.push(`\n[Active persona: ${soul.name}]\n${soul.systemPrompt}`);
       }
@@ -420,10 +441,12 @@ export default function App() {
       if (useRag) {
         try {
           setPendingLabel('Thinking');
+          // Prefer Gemini for embeddings (768-dim, always compatible); fall back to active provider.
           const geminiCfg = settings.providers.gemini;
-          const ragResults = await queryKnowledge(userText, geminiCfg.apiKey, {
-            baseUrl: geminiCfg.baseUrl,
-            embeddingModel: geminiCfg.embeddingModel,
+          const embedCfg = geminiCfg.apiKey ? geminiCfg : settings.providers[settings.activeProvider];
+          const ragResults = await queryKnowledge(userText, embedCfg.apiKey, {
+            baseUrl: embedCfg.baseUrl,
+            embeddingModel: embedCfg.embeddingModel,
             limit: settings.ragChunks ?? 5,
             folderId: projectScope, // undefined for loose chats = search all folders
           });
@@ -455,7 +478,25 @@ export default function App() {
       if (projectPrompt) sys += projectPrompt;
       if (ragContext) sys += ragContext;
       if (linkContent) sys += linkContent;
-      if (settings.webSearch && isSearchCapable(settings)) setPendingLabel('Searching');
+      // Web search: Gemini uses native Google grounding (handled in providers.ts).
+      // All other providers get results injected into context via Jina AI search.
+      if (settings.webSearch && !hasNativeSearch(settings)) {
+        try {
+          setPendingLabel('Searching');
+          const searchQuery = extractSearchQuery(trimmed);
+          const results = await searchWeb(searchQuery);
+          if (results) {
+            sys +=
+              `\n\nIMPORTANT: The following are LIVE web search results retrieved right now. ` +
+              `You have internet access for this query. Do NOT say you cannot access real-time data or the internet. ` +
+              `Answer based on these results and cite sources.\n` +
+              `[Web Search Results for: "${searchQuery}"]\n"""\n${results.slice(0, 8000)}\n"""`;
+          }
+        } catch (e) {
+          console.warn('Web search injection failed:', e);
+        }
+      }
+      if (settings.webSearch && hasNativeSearch(settings)) setPendingLabel('Searching');
       else setPendingLabel('Streaming');
 
       const ctrl = new AbortController();
@@ -466,7 +507,8 @@ export default function App() {
         try {
           setPendingLabel('Streaming');
           const isAudio = activeSkill.id === 'builtin-audiogen';
-          const defaultAudioModel = settings.speed === 'quality' ? (cfg.qualityAudioModel || 'gemini-2.5-pro') : (cfg.fastAudioModel || 'gemini-2.0-flash');
+          const geminiCfg = settings.providers.gemini;
+          const defaultAudioModel = settings.speed === 'quality' ? (geminiCfg.qualityAudioModel || 'gemini-2.5-pro') : (geminiCfg.fastAudioModel || 'gemini-2.0-flash');
           const targetModel = isAudio ? defaultAudioModel : null;
 
           const inputImages = atts
@@ -682,6 +724,10 @@ export default function App() {
   const visionCapable = isVisionCapable(settings);
   const searchCapable = isSearchCapable(settings);
   const cfg = activeProvider(settings);
+  // Embedding provider: prefer Gemini (768-dim, always compatible); fall back to active provider.
+  const embedProviderCfg = settings.providers.gemini.apiKey
+    ? settings.providers.gemini
+    : settings.providers[settings.activeProvider];
 
   return (
     <div className="flex flex-col h-full bg-bg">
@@ -828,9 +874,9 @@ export default function App() {
         open={projectModalOpen}
         projectId={projectModalTarget === 'new' ? null : projectModalTarget}
         history={history}
-        apiKey={settings.providers.gemini.apiKey}
-        baseUrl={settings.providers.gemini.baseUrl}
-        embeddingModel={settings.providers.gemini.embeddingModel}
+        apiKey={embedProviderCfg.apiKey}
+        baseUrl={embedProviderCfg.baseUrl}
+        embeddingModel={embedProviderCfg.embeddingModel}
         onClose={async (created) => {
           setProjectModalOpen(false);
           setProjectModalTarget(null);

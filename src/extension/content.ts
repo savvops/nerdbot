@@ -22,7 +22,7 @@ function getPageText(): string {
 }
 
 async function getYouTubeTranscript(): Promise<string | undefined> {
-  if (!/youtube\.com\/watch/.test(location.href)) return undefined;
+  if (!/youtube\.com\/(watch|shorts)/.test(location.href)) return undefined;
   // Try to scrape rendered transcript panel if open
   const segs = document.querySelectorAll(
     'ytd-transcript-segment-renderer .segment-text, ytd-transcript-segment-list-renderer .segment-text'

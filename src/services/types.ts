@@ -62,6 +62,8 @@ export interface ProviderConfig {
   fastAudioModel?: string;
   qualityAudioModel?: string;
   embeddingModel?: string;
+  /** Local providers only: opt-in to image/screenshot attachments when a multimodal model is loaded. */
+  visionEnabled?: boolean;
 }
 
 export interface Settings {

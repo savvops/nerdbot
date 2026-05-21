@@ -241,6 +241,43 @@ export default function SettingsPanel({
             </Field>
           )}
 
+          {(provider.id === 'lmstudio' || provider.id === 'ollama') && (
+            <>
+              <Field label="Vision / multimodal">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!provider.visionEnabled}
+                    onChange={(e) => updateProvider({ visionEnabled: e.target.checked })}
+                    className="w-3.5 h-3.5 accent-[rgb(var(--nb-accent))]"
+                  />
+                  <span className="text-[12.5px] text-soft">
+                    Enable image &amp; screenshot attachments
+                    {' '}(requires a multimodal model like{' '}
+                    <code className="text-ink/80">llava</code>,{' '}
+                    <code className="text-ink/80">llama3.2-vision</code>, or{' '}
+                    <code className="text-ink/80">qwen2-vl</code>)
+                  </span>
+                </label>
+              </Field>
+
+              <Field label="Embedding model (for Knowledge Base)">
+                <input
+                  value={provider.embeddingModel || ''}
+                  onChange={(e) => updateProvider({ embeddingModel: e.target.value })}
+                  placeholder={provider.id === 'ollama' ? 'nomic-embed-text' : 'nomic-embed-text-v1.5'}
+                  className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                />
+                <div className="text-[10.5px] text-soft mt-1">
+                  Used when no Gemini key is configured. Returns 768-dim vectors that match the knowledge store.
+                  {provider.id === 'ollama' && (
+                    <> Run <code className="text-ink/80">ollama pull nomic-embed-text</code> first.</>
+                  )}
+                </div>
+              </Field>
+            </>
+          )}
+
           <Field label={`Temperature · ${settings.temperature.toFixed(2)}`}>
             <input
               type="range"

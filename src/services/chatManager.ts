@@ -40,12 +40,16 @@ export async function loadHistory(): Promise<Chat[]> {
   return get<Chat[]>(HISTORY_KEY, []);
 }
 
-export async function archiveCurrent(chat: Chat, opts: { keepProject?: boolean } = {}): Promise<Chat> {
+export async function saveChatToHistory(chat: Chat): Promise<void> {
   if (chat.messages.length > 0) {
     const history = await loadHistory();
     const next = [chat, ...history.filter((c) => c.id !== chat.id)].slice(0, MAX_HISTORY);
     await set(HISTORY_KEY, next);
   }
+}
+
+export async function archiveCurrent(chat: Chat, opts: { keepProject?: boolean } = {}): Promise<Chat> {
+  await saveChatToHistory(chat);
   const fresh = emptyChat(opts.keepProject ? chat.projectId : undefined);
   await saveCurrent(fresh);
   return fresh;

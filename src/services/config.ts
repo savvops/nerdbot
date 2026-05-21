@@ -125,11 +125,18 @@ export function activeProvider(settings: Settings): ProviderConfig {
 
 export function isVisionCapable(settings: Settings): boolean {
   const p = settings.activeProvider;
-  return p === 'gemini' || p === 'openai' || p === 'openrouter' || p === 'anthropic';
+  if (p === 'gemini' || p === 'openai' || p === 'openrouter' || p === 'anthropic') return true;
+  // Local providers: opt-in when user enables a multimodal model (llava, qwen2-vl, etc.)
+  return !!settings.providers[p].visionEnabled;
 }
 
-export function isSearchCapable(settings: Settings): boolean {
-  // Native grounding only works on Gemini for now.
+export function isSearchCapable(_settings: Settings): boolean {
+  // All providers support web search: Gemini via native grounding, others via Jina injection.
+  return true;
+}
+
+/** True only for Gemini, which gets native Google grounding rather than injected results. */
+export function hasNativeSearch(settings: Settings): boolean {
   return settings.activeProvider === 'gemini';
 }
 
@@ -139,7 +146,7 @@ export const CONTEXT_WINDOW: Record<ProviderId, number> = {
   openai: 128_000,
   openrouter: 128_000,
   lmstudio: 32_000,
-  ollama: 8_000,
+  ollama: 32_000,
   anthropic: 200_000,
 };
 

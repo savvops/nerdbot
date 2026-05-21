@@ -14,8 +14,8 @@ export interface ChunkOptions {
 }
 
 export function chunkText(text: string, opts: ChunkOptions = {}): string[] {
-  const size = opts.size ?? DEFAULT_CHUNK_SIZE;
-  const overlap = opts.overlap ?? DEFAULT_OVERLAP;
+  const size = Math.max(1, opts.size ?? DEFAULT_CHUNK_SIZE);
+  const overlap = Math.max(0, opts.overlap ?? DEFAULT_OVERLAP);
 
   const cleaned = text.replace(/\r\n/g, '\n').trim();
   if (cleaned.length <= size) return [cleaned];
@@ -42,7 +42,13 @@ export function chunkText(text: string, opts: ChunkOptions = {}): string[] {
     const chunk = cleaned.slice(start, end).trim();
     if (chunk.length > 0) chunks.push(chunk);
 
-    start = end - overlap;
+    const nextStart = end - overlap;
+    if (nextStart <= start) {
+      start = end;
+    } else {
+      start = nextStart;
+    }
+
     if (start >= cleaned.length) break;
     // Prevent infinite loop on very small text
     if (end >= cleaned.length) break;

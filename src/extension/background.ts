@@ -35,12 +35,17 @@ type Msg =
   | { type: 'CAPTURE_SCREENSHOT' }
   | { type: 'LIST_TABS' }
   | { type: 'GET_TAB_TEXT'; payload: { tabId: number } }
+  | { type: 'QUICK_CHAT_QUEUE'; payload: { text: string } }
   | { type: 'PING' };
 
 chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
   (async () => {
     try {
       if (message.type === 'PING') {
+        sendResponse({ ok: true });
+        return;
+      }
+      if (message.type === 'QUICK_CHAT_QUEUE') {
         sendResponse({ ok: true });
         return;
       }

@@ -201,7 +201,7 @@ export default function InputBar(props: Props) {
                 ? 'bg-accent/15 border-accent/40 text-ink'
                 : 'bg-surface border-border text-muted hover:text-ink'
             }`}
-            title={webSearch ? 'Web search on' : 'Enable web search (Gemini grounding)'}
+            title={webSearch ? 'Web search on' : 'Enable web search'}
           >
             <Globe size={11} className={webSearch ? 'text-accent' : ''} /> Search
           </button>
