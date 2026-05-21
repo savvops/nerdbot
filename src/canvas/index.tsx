@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import CanvasApp from './CanvasApp';
 import '../sidebar/index.css';

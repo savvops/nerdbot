@@ -1,5 +1,4 @@
 import { Maximize2 } from 'lucide-react';
-import React from 'react';
 
 export default function CanvasPreview({ code, lang }: { code: string; lang: string }) {
   const openCanvas = () => {

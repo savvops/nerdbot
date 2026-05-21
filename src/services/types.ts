@@ -1,4 +1,4 @@
-export type Role = 'system' | 'user' | 'assistant';
+export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface Attachment {
   id: string;
@@ -10,6 +10,8 @@ export interface Attachment {
   /** rendered text for PDFs (so we can prepend it to the user message) */
   extractedText?: string;
   size?: number;
+  /** Hide from the chat UI (e.g. auto-captured screenshots) */
+  hidden?: boolean;
 }
 
 export interface Message {
@@ -25,6 +27,10 @@ export interface Message {
   modelUsed?: string;
   tokensIn?: number;
   tokensOut?: number;
+  /** Tool calls issued by the assistant */
+  toolCalls?: any[];
+  /** The ID of the tool call this message is responding to (if role is 'tool') */
+  toolCallId?: string;
 }
 
 export interface Chat {

@@ -2,6 +2,7 @@ import { activeModel, activeProvider, isSearchCapable } from './config';
 import type { Attachment, Message, ProviderId, Settings } from './types';
 import { withRetry } from '../utils/retry';
 import { captureRateLimits } from '../utils/rateLimitTracker';
+import { ALL_TOOLS_SCHEMA } from './tools';
 
 export interface StreamRequest {
   settings: Settings;
@@ -10,6 +11,7 @@ export interface StreamRequest {
   signal: AbortSignal;
   onDelta: (text: string) => void;
   onCitations?: (citations: Citation[]) => void;
+  onToolCall?: (toolCall: any) => void;
   webSearch?: boolean;
 }
 
@@ -55,7 +57,26 @@ async function streamGemini(req: StreamRequest): Promise<string> {
   const contents = messages
     .filter((m) => m.role !== 'system')
     .map((m) => {
-      const parts: unknown[] = [];
+      if (m.role === 'tool') {
+        return {
+          role: 'user',
+          parts: [{
+            functionResponse: {
+              name: m.toolCalls?.[0]?.name || 'unknown',
+              response: { result: m.content }
+            }
+          }]
+        };
+      }
+      if (m.toolCalls && m.toolCalls.length > 0) {
+        return {
+          role: 'model',
+          parts: m.toolCalls.map(tc => ({
+            functionCall: { name: tc.name, args: tc.args }
+          }))
+        };
+      }
+      const parts: any[] = [];
       if (m.content) parts.push({ text: m.content });
       parts.push(...attachmentsToGeminiParts(m.attachments));
       return {
@@ -77,6 +98,12 @@ async function streamGemini(req: StreamRequest): Promise<string> {
 
   if (webSearch && isSearchCapable(settings)) {
     body.tools = [{ google_search: {} }];
+  }
+  if (req.onToolCall) {
+    body.tools = body.tools || [];
+    (body.tools as any[]).push({
+      functionDeclarations: ALL_TOOLS_SCHEMA.map(t => t.function)
+    });
   }
 
   const res = await fetch(url, {
@@ -100,6 +127,13 @@ async function streamGemini(req: StreamRequest): Promise<string> {
       const parts = cand?.content?.parts;
       if (Array.isArray(parts)) {
         for (const p of parts) {
+          if (p.functionCall && req.onToolCall) {
+            req.onToolCall({
+              id: p.functionCall.name + '_' + Date.now(),
+              name: p.functionCall.name,
+              args: p.functionCall.args,
+            });
+          }
           if (typeof p?.text === 'string') {
             full += p.text;
             onDelta(p.text);
@@ -245,6 +279,24 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
       ...messages
         .filter((m) => m.role !== 'system')
         .map((m) => {
+          if (m.role === 'tool') {
+            return {
+              role: 'tool',
+              tool_call_id: m.toolCallId || m.id,
+              content: m.content,
+            };
+          }
+          if (m.toolCalls && m.toolCalls.length > 0) {
+            return {
+              role: 'assistant',
+              content: m.content || null,
+              tool_calls: m.toolCalls.map(tc => ({
+                id: tc.id,
+                type: 'function',
+                function: { name: tc.name, arguments: JSON.stringify(tc.args) }
+              }))
+            };
+          }
           const imageParts = attachmentsToOpenAIParts(m.attachments);
           if (imageParts.length === 0) return { role: m.role, content: m.content };
           return {
@@ -257,6 +309,10 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
         }),
     ],
   };
+
+  if (req.onToolCall) {
+    (body as any).tools = ALL_TOOLS_SCHEMA;
+  }
 
   const res = await fetch(url, {
     method: 'POST',
@@ -272,19 +328,45 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
   captureRateLimits(provider, res.headers);
 
   let full = '';
+  const pendingToolCalls: Record<number, { id: string, name: string, args: string }> = {};
+
   await readSse(res.body, (chunk) => {
     if (chunk === '[DONE]') return;
     try {
       const obj = JSON.parse(chunk);
-      const delta = obj?.choices?.[0]?.delta?.content;
-      if (typeof delta === 'string' && delta.length > 0) {
-        full += delta;
-        onDelta(delta);
+      const delta = obj?.choices?.[0]?.delta;
+      if (delta?.tool_calls) {
+        for (const call of delta.tool_calls) {
+          const idx = call.index;
+          if (!pendingToolCalls[idx]) {
+            pendingToolCalls[idx] = { id: call.id, name: call.function?.name || '', args: '' };
+          }
+          if (call.function?.arguments) {
+            pendingToolCalls[idx].args += call.function.arguments;
+          }
+        }
+      }
+      if (typeof delta?.content === 'string' && delta.content.length > 0) {
+        full += delta.content;
+        onDelta(delta.content);
       }
     } catch {
       /* skip */
     }
   });
+
+  if (req.onToolCall) {
+    for (const idx in pendingToolCalls) {
+      const tc = pendingToolCalls[idx];
+      try {
+        const parsedArgs = JSON.parse(tc.args || '{}');
+        req.onToolCall({ id: tc.id, name: tc.name, args: parsedArgs });
+      } catch {
+        req.onToolCall({ id: tc.id, name: tc.name, args: {} });
+      }
+    }
+  }
+
   return full;
 }
 

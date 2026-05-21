@@ -1,4 +1,4 @@
-import { ArrowUp, BookOpen, Camera, Globe, Image as ImageIcon, Paperclip, Square, Plus } from 'lucide-react';
+import { ArrowUp, BookOpen, Globe, Image as ImageIcon, Paperclip, Square, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Attachment, PageContext, Skill, SpeedMode } from '../../services/types';
 import PageSharePill from './PageSharePill';

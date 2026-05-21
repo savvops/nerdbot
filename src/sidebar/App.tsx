@@ -16,6 +16,7 @@ import KnowledgePanel from './components/KnowledgePanel';
 import ContextRing from './components/ContextRing';
 import ProjectModal from './components/ProjectModal';
 
+import { executeTool } from '../services/tools';
 import {
   appendMessage,
   archiveCurrent,
@@ -61,17 +62,18 @@ import { uid } from '../services/storage';
 import { captureScreenshotAttachment, fileToAttachment } from '../services/attachments';
 import { approxTokens, formatCost } from '../services/tokens';
 import { makeStreamBuffer } from '../services/streamBuffer';
-import { queryKnowledge, knowledgeStats, listFolders, getFolder, deleteFolder, type KnowledgeFolder } from '../services/rag';
+import { queryKnowledge, knowledgeStats, listFolders, deleteFolder, type KnowledgeFolder } from '../services/rag';
 import { fetchUrlContent, extractUrl, searchWeb, extractSearchQuery } from '../services/scraper';
 import { loadSouls, createSoul, updateSoul, deleteSoul } from '../services/souls';
 import { memoryProvider } from '../services/memoryProvider';
-import type { Attachment, Chat, Message, PageContext, Settings, Skill, Soul } from '../services/types';
+import type { Attachment, Chat, Message, PageContext, Role, Settings, Skill, Soul } from '../services/types';
 
 const SYSTEM_BASE = `You are Nerdbot, a friendly, sharp browser-side assistant.
 Be concise and direct. Prefer markdown with headings, bullets, and code blocks where helpful.
 If a page is shared, you may use it as context — quote sparingly, never invent content not present.
 If the Page Content is empty, you must explicitly state that you cannot read the page rather than guessing its contents.
-When web search results appear in your context, you have live internet access for this query. Always answer using those results and cite sources.`;
+When web search results appear in your context, you have live internet access for this query. Always answer using those results and cite sources.
+IMPORTANT: You HAVE the ability to generate images. If the user asks you to create, draw, or generate an image, DO NOT say you cannot. Instead, tell them to type "/Generate image" in the input bar or use the Skills menu to trigger the image generation skill.`;
 
 interface SendOptions {
   /** Override user-message content (used by edit/regenerate). */
@@ -80,6 +82,12 @@ interface SendOptions {
   attachments?: Attachment[];
   /** If true, don't push a new user message — reuse the last one. */
   reuseLastUser?: boolean;
+  /** If true, skip adding user message and context, just resume generation (used for tool execution loop). */
+  autoResume?: boolean;
+  /** Pass the previously built system prompt when auto-resuming */
+  autoResumeSysPrompt?: string;
+  /** Pass the latest chat state to avoid stale closures */
+  chatToResume?: Chat;
 }
 
 export default function App() {
@@ -92,9 +100,7 @@ export default function App() {
 
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [pendingLabel, setPendingLabel] = useState<'Thinking' | 'Reading page' | 'Reading link' | 'Streaming' | 'Searching'>(
-    'Thinking'
-  );
+  const [pendingLabel, setPendingLabel] = useState<'Thinking' | 'Reading page' | 'Reading link' | 'Streaming' | 'Searching' | 'Running tools...'>('Thinking');
   const [error, setError] = useState<string | null>(null);
 
   const [page, setPage] = useState<PageContext | null>(null);
@@ -351,37 +357,60 @@ export default function App() {
     async (opts: SendOptions = {}) => {
       if (!settings) return;
       const trimmed = (opts.userText ?? input).trim();
-      const atts = opts.attachments ?? attachments;
-      if (!trimmed && !activeSkill && atts.length === 0) return;
+      const localAtts = [...(opts.attachments ?? attachments)];
+      if (!trimmed && !activeSkill && localAtts.length === 0 && !opts.autoResume) return;
 
       setError(null);
 
-      // PDF text gets prepended to the user message so non-vision providers can see it.
-      const pdfText = atts
-        .filter((a) => a.kind === 'pdf' && a.extractedText)
-        .map((a) => `--- ${a.name} ---\n${a.extractedText}`)
-        .join('\n\n');
-      const userText =
-        trimmed || (activeSkill ? `(Apply “${activeSkill.name}”.)` : '(See attached.)');
-      const fullUserContent = pdfText ? `${userText}\n\n${pdfText}` : userText;
-
-      let next = chat;
+      let next = opts.chatToResume || chat;
       let assistantId: string;
+      let pdfText = '';
+      let fullUserContent = '';
 
-      if (opts.reuseLastUser) {
-        // Used by regenerate — drop everything after the last user message and add a fresh assistant.
-        const lastUser = [...chat.messages].reverse().find((m) => m.role === 'user');
-        if (!lastUser) return;
-        next = truncateAfter(chat, lastUser.id, false);
-      } else {
-        const userMsg: Message = {
-          id: uid(),
-          role: 'user',
-          content: fullUserContent,
-          attachments: atts.length > 0 ? atts : undefined,
-          createdAt: Date.now(),
-        };
-        next = appendMessage(next, userMsg);
+      if (!opts.autoResume) {
+        // Auto-capture screenshot for Vision context
+        if (shareEnabled && isVisionCapable(settings)) {
+          try {
+            const res = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+            if (res?.dataUrl) {
+              localAtts.push({
+                id: uid(),
+                kind: 'screenshot',
+                name: 'Auto-captured Context',
+                mimeType: 'image/jpeg',
+                data: res.dataUrl.replace(/^data:image\/\w+;base64,/, ''),
+                hidden: true,
+              });
+            }
+          } catch (e) {
+            console.warn('Auto-screenshot failed:', e);
+          }
+        }
+
+        // PDF text gets prepended to the user message so non-vision providers can see it.
+        pdfText = localAtts
+          .filter((a) => a.kind === 'pdf' && a.extractedText)
+          .map((a) => `--- ${a.name} ---\n${a.extractedText}`)
+          .join('\n\n');
+        const userText =
+          trimmed || (activeSkill ? `(Apply “${activeSkill.name}”.)` : '(See attached.)');
+        fullUserContent = pdfText ? `${userText}\n\n${pdfText}` : userText;
+
+        if (opts.reuseLastUser) {
+          // Used by regenerate — drop everything after the last user message and add a fresh assistant.
+          const lastUser = [...chat.messages].reverse().find((m) => m.role === 'user');
+          if (!lastUser) return;
+          next = truncateAfter(chat, lastUser.id, false);
+        } else {
+          const userMsg: Message = {
+            id: uid(),
+            role: 'user',
+            content: fullUserContent,
+            attachments: localAtts.length > 0 ? localAtts : undefined,
+            createdAt: Date.now(),
+          };
+          next = appendMessage(next, userMsg);
+        }
       }
 
       const assistantMsg: Message = {
@@ -395,108 +424,110 @@ export default function App() {
       next = appendMessage(next, assistantMsg);
 
       setChat(next);
-      if (!opts.userText) setInput('');
-      if (!opts.attachments) setAttachments([]);
+      if (!opts.userText && !opts.autoResume) setInput('');
+      if (!opts.attachments && !opts.autoResume) setAttachments([]);
       setBusy(true);
       setPendingLabel('Thinking');
 
-      // Gather page context (current tab + extras)
-      const includedPages: PageContext[] = [];
-      if (shareEnabled) {
-        setPendingLabel('Reading page');
-        const cur = await getPageText();
-        if (cur) includedPages.push(cur);
-      }
-      for (const tabId of extraTabIds) {
-        const t = await getTabText(tabId);
-        if (t) {
-          includedPages.push({
-            url: t.url,
-            title: t.title,
-            text: t.text,
-            transcript: t.transcript,
-          });
+      let sys = opts.autoResumeSysPrompt || '';
+      
+      if (!opts.autoResumeSysPrompt) {
+        // Gather page context (current tab + extras)
+        const includedPages: PageContext[] = [];
+        if (shareEnabled) {
+          setPendingLabel('Reading page');
+          const cur = await getPageText();
+          if (cur) includedPages.push(cur);
         }
-      }
-
-      // Detect URL in input and fetch content if needed
-      let linkContent = '';
-      const foundUrl = extractUrl(userText);
-      if (foundUrl) {
-        try {
-          setPendingLabel('Reading link');
-          const content = await fetchUrlContent(foundUrl);
-          if (content) {
-            linkContent = `\n\n[Link Content: ${foundUrl}]\n"""\n${content}\n"""`;
+        for (const tabId of extraTabIds) {
+          const t = await getTabText(tabId);
+          if (t) {
+            includedPages.push({
+              url: t.url,
+              title: t.title,
+              text: t.text,
+              transcript: t.transcript,
+            });
           }
-        } catch (e) {
-          console.warn('URL content fetch failed:', e);
         }
-      }
 
-      // RAG: project chats auto-query their project's KB; loose chats use the global toggle.
-      let ragContext = '';
-      const projectScope = chat.projectId;
-      const useRag = projectScope || (knowledgeEnabled && knowledgeCount > 0);
-      if (useRag) {
-        try {
-          setPendingLabel('Thinking');
-          // Prefer Gemini for embeddings (768-dim, always compatible); fall back to active provider.
-          const geminiCfg = settings.providers.gemini;
-          const embedCfg = geminiCfg.apiKey ? geminiCfg : settings.providers[settings.activeProvider];
-          const ragResults = await queryKnowledge(userText, embedCfg.apiKey, {
-            baseUrl: embedCfg.baseUrl,
-            embeddingModel: embedCfg.embeddingModel,
-            limit: settings.ragChunks ?? 5,
-            folderId: projectScope, // undefined for loose chats = search all folders
-          });
-          if (ragResults.length > 0) {
-            ragContext = '\n\n[Knowledge Base Context]\n' +
-              ragResults.map((r) =>
-                `[Source: ${r.docName}]\n"""\n${r.text}\n"""`
-              ).join('\n\n');
+        // Detect URL in input and fetch content if needed
+        let linkContent = '';
+        const foundUrl = extractUrl(trimmed);
+        if (foundUrl) {
+          try {
+            setPendingLabel('Reading link');
+            const content = await fetchUrlContent(foundUrl);
+            if (content) {
+              linkContent = `\n\n[Link Content: ${foundUrl}]\n"""\n${content}\n"""`;
+            }
+          } catch (e) {
+            console.warn('URL content fetch failed:', e);
           }
-        } catch (e) {
-          console.warn('RAG query failed:', e);
         }
-      }
 
-      // Project system prompt
-      let projectPrompt = '';
-      if (chat.projectId) {
-        const proj = projects.find((p) => p.id === chat.projectId);
-        if (proj?.systemPrompt) {
-          projectPrompt = `\n\n[Project: ${proj.name}]\n${proj.systemPrompt}`;
-        }
-      }
-
-      const activeSoul = settings.activeSoulId
-        ? souls.find((s) => s.id === settings.activeSoulId) ?? null
-        : null;
-      const memorySection = await memoryProvider.buildSystemPromptSection();
-      let sys = buildSystemPrompt(activeSkill, includedPages, activeSoul, memorySection);
-      if (projectPrompt) sys += projectPrompt;
-      if (ragContext) sys += ragContext;
-      if (linkContent) sys += linkContent;
-      // Web search: Gemini uses native Google grounding (handled in providers.ts).
-      // All other providers get results injected into context via Jina AI search.
-      if (settings.webSearch && !hasNativeSearch(settings)) {
-        try {
-          setPendingLabel('Searching');
-          const searchQuery = extractSearchQuery(trimmed);
-          const results = await searchWeb(searchQuery);
-          if (results) {
-            sys +=
-              `\n\nIMPORTANT: The following are LIVE web search results retrieved right now. ` +
-              `You have internet access for this query. Do NOT say you cannot access real-time data or the internet. ` +
-              `Answer based on these results and cite sources.\n` +
-              `[Web Search Results for: "${searchQuery}"]\n"""\n${results.slice(0, 8000)}\n"""`;
+        // RAG: project chats auto-query their project's KB; loose chats use the global toggle.
+        let ragContext = '';
+        const projectScope = chat.projectId;
+        const useRag = projectScope || (knowledgeEnabled && knowledgeCount > 0);
+        if (useRag) {
+          try {
+            setPendingLabel('Thinking');
+            const geminiCfg = settings.providers.gemini;
+            const embedCfg = geminiCfg.apiKey ? geminiCfg : settings.providers[settings.activeProvider];
+            const ragResults = await queryKnowledge(trimmed, embedCfg.apiKey, {
+              baseUrl: embedCfg.baseUrl,
+              embeddingModel: embedCfg.embeddingModel,
+              limit: settings.ragChunks ?? 5,
+              folderId: projectScope,
+            });
+            if (ragResults.length > 0) {
+              ragContext = '\n\n[Knowledge Base Context]\n' +
+                ragResults.map((r) =>
+                  `[Source: ${r.docName}]\n"""\n${r.text}\n"""`
+                ).join('\n\n');
+            }
+          } catch (e) {
+            console.warn('RAG query failed:', e);
           }
-        } catch (e) {
-          console.warn('Web search injection failed:', e);
+        }
+
+        let projectPrompt = '';
+        if (chat.projectId) {
+          const proj = projects.find((p) => p.id === chat.projectId);
+          if (proj?.systemPrompt) {
+            projectPrompt = `\n\n[Project: ${proj.name}]\n${proj.systemPrompt}`;
+          }
+        }
+
+        const activeSoul = settings.activeSoulId
+          ? souls.find((s) => s.id === settings.activeSoulId) ?? null
+          : null;
+        const memorySection = await memoryProvider.buildSystemPromptSection();
+        sys = buildSystemPrompt(activeSkill, includedPages, activeSoul, memorySection);
+        if (projectPrompt) sys += projectPrompt;
+        if (ragContext) sys += ragContext;
+        if (linkContent) sys += linkContent;
+
+        if (settings.webSearch && !hasNativeSearch(settings)) {
+          try {
+            setPendingLabel('Searching');
+            const searchQuery = extractSearchQuery(trimmed);
+            const results = await searchWeb(searchQuery);
+            if (results) {
+              sys +=
+                `\n\nIMPORTANT: The following are LIVE web search results retrieved right now. ` +
+                `You have internet access for this query. Do NOT say you cannot access real-time data or the internet. ` +
+                `Answer based on these results and cite sources.\n` +
+                `[Web Search Results for: "${searchQuery}"]\n"""\n${results.slice(0, 8000)}\n"""`;
+            }
+          } catch (e) {
+            console.warn('Web search injection failed:', e);
+          }
         }
       }
-      if (settings.webSearch && hasNativeSearch(settings)) setPendingLabel('Searching');
+
+      if (settings.webSearch && hasNativeSearch(settings) && !opts.autoResume) setPendingLabel('Searching');
       else setPendingLabel('Streaming');
 
       const ctrl = new AbortController();
@@ -511,7 +542,7 @@ export default function App() {
           const defaultAudioModel = settings.speed === 'quality' ? (geminiCfg.qualityAudioModel || 'gemini-2.5-pro') : (geminiCfg.fastAudioModel || 'gemini-2.0-flash');
           const targetModel = isAudio ? defaultAudioModel : null;
 
-          const inputImages = atts
+          const inputImages = localAtts
             .filter((a) => a.kind === 'image' || a.kind === 'screenshot')
             .map((a) => ({ mimeType: a.mimeType, data: a.data }));
           const result = await generateImage({
@@ -572,6 +603,7 @@ export default function App() {
         }
         sendMessages = kept;
 
+        let toolCallsList: any[] = [];
         await streamCompletion({
           settings,
           systemPrompt: sys,
@@ -584,16 +616,61 @@ export default function App() {
             const lines = cites.map((c) => `- [${c.title || c.uri}](${c.uri})`).join('\n');
             buffer.push(`\n\n---\n**Sources**\n${lines}`);
           },
+          onToolCall: (tc) => {
+            toolCallsList.push(tc);
+          }
         });
         buffer.flush();
-        setChat((curr) =>
-          updateMessage(curr, assistantId, {
-            content: acc,
-            pending: false,
-            finishedAt: Date.now(),
-            tokensOut: approxTokens(acc),
-          })
-        );
+        
+        if (toolCallsList.length > 0) {
+          setChat((curr) =>
+            updateMessage(curr, assistantId, {
+              content: acc,
+              pending: false,
+              toolCalls: toolCallsList,
+              finishedAt: Date.now(),
+            })
+          );
+          
+          setPendingLabel('Running tools...');
+          const geminiCfg = settings.providers.gemini;
+          const embedCfg = geminiCfg.apiKey ? geminiCfg : settings.providers[settings.activeProvider];
+          const toolResults = await Promise.all(toolCallsList.map(async (tc) => {
+             const result = await executeTool(tc.name, tc.args, embedCfg.apiKey, embedCfg.baseUrl, embedCfg.embeddingModel);
+             return {
+                id: uid(),
+                role: 'tool' as Role,
+                content: result,
+                toolCallId: tc.id,
+                createdAt: Date.now(),
+             };
+          }));
+          
+          let nextChat: Chat | null = null;
+          setChat((curr) => {
+            let updated = curr;
+            for (const r of toolResults) updated = appendMessage(updated, r);
+            nextChat = updated;
+            return updated;
+          });
+          
+          setTimeout(() => {
+            if (nextChat) {
+              send({ autoResume: true, autoResumeSysPrompt: sys, chatToResume: nextChat });
+            }
+          }, 100);
+          
+          return;
+        } else {
+          setChat((curr) =>
+            updateMessage(curr, assistantId, {
+              content: acc,
+              pending: false,
+              finishedAt: Date.now(),
+              tokensOut: approxTokens(acc),
+            })
+          );
+        }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         const aborted = (e as { name?: string })?.name === 'AbortError';

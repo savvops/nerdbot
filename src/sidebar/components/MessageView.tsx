@@ -9,7 +9,7 @@ import 'highlight.js/styles/github-dark.css';
 import BrandMark from './BrandMark';
 import CanvasPreview from './CanvasPreview';
 import { dataUrl } from '../../services/attachments';
-import { isSpeaking, speak, cancelSpeech, isSpeechSupported } from '../../services/speech';
+import { speak, cancelSpeech, isSpeechSupported } from '../../services/speech';
 import type { Message, Skill } from '../../services/types';
 
 interface Props {
@@ -42,9 +42,9 @@ export default function MessageView({
     return (
       <div className="flex justify-end animate-slide-up group">
         <div className="max-w-[88%] flex flex-col items-end gap-1.5">
-          {message.attachments && message.attachments.length > 0 && (
+          {message.attachments && message.attachments.filter((a) => !a.hidden).length > 0 && (
             <div className="flex gap-1.5 flex-wrap justify-end">
-              {message.attachments.map((a) =>
+              {message.attachments.filter((a) => !a.hidden).map((a) =>
                 a.kind === 'image' || a.kind === 'screenshot' ? (
                   <img
                     key={a.id}
@@ -134,9 +134,9 @@ export default function MessageView({
           </ReactMarkdown>
         </div>
 
-        {message.attachments && message.attachments.length > 0 && (
+        {message.attachments && message.attachments.filter((a) => !a.hidden).length > 0 && (
           <div className="flex gap-2 flex-wrap mt-2">
-            {message.attachments.map((a) =>
+            {message.attachments.filter((a) => !a.hidden).map((a) =>
               a.kind === 'image' || a.kind === 'screenshot' ? (
                 <a
                   key={a.id}

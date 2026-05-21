@@ -67,7 +67,6 @@ export async function deleteFolder(folderId: string): Promise<void> {
   await set(FOLDERS_KEY, folders.filter((f) => f.id !== folderId));
 
   // Delete all docs in this folder
-  const docs = await listDocs(folderId);
   const allDocs = await getAllDocs();
   await set(DOCS_KEY, allDocs.filter((d) => d.folderId !== folderId));
 
