@@ -84,11 +84,12 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
         }
         try {
           const reply = await chrome.tabs.sendMessage(tab.id, message);
-          sendResponse({ ok: true, data: { ...reply, url: tab.url, title: tab.title } });
+          sendResponse({ ok: true, data: { ...reply, tabId: tab.id, url: tab.url, title: tab.title } });
         } catch {
           sendResponse({
             ok: true,
             data: {
+              tabId: tab.id,
               url: tab.url ?? '',
               title: tab.title ?? '',
               selection: '',

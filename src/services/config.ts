@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   temperature: 0.7,
   maxTokens: 4096,
   shareTab: true,
-  webSearch: false,
+  webSearch: true,
   theme: 'dark',
   providers: defaultProviders(),
   ragChunks: 5,

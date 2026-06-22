@@ -1,8 +1,30 @@
 {
   "name": "nerdbot",
   "version": "1.0.0",
-  "description": "Nerdbot — a polished, browser-side AI assistant inspired by Ask Gemini.",
+  "description": "A polished Chrome MV3 side-panel AI assistant with multi-provider chat, skills, RAG, page context, voice, and image tools.",
+  "license": "Apache-2.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/savvops/nerdbot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/savvops/nerdbot/issues"
+  },
+  "homepage": "https://github.com/savvops/nerdbot#readme",
+  "keywords": [
+    "chrome-extension",
+    "mv3",
+    "side-panel",
+    "ai-assistant",
+    "llm",
+    "rag",
+    "gemini",
+    "openai",
+    "openrouter",
+    "ollama",
+    "anthropic"
+  ],
   "scripts": {
     "dev": "vite build --watch --mode development",
     "build": "tsc --noEmit && vite build",

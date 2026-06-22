@@ -1,6 +1,23 @@
-node_modules
-dist
+node_modules/
+dist/
+
+# Local environment and secrets
 .env
-.env.local
-.DS_Store
+.env.*
+!.env.example
+
+# Local agent/editor state
+.claude/
+.vscode/
+.idea/
+
+# Logs and temporary transcript dumps
 *.log
+temp_*
+*_tail.txt
+*_LINK.md
+
+# OS/cache files
+.DS_Store
+Thumbs.db
+.cache/

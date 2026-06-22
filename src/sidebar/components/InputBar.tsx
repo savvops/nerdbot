@@ -15,6 +15,7 @@ interface Props {
   page: PageContext | null;
   shareEnabled: boolean;
   onToggleShare: () => void;
+  extraTabCount: number;
   speed: SpeedMode;
   onSpeedChange: (s: SpeedMode) => void;
   skills: Skill[];
@@ -53,6 +54,7 @@ export default function InputBar(props: Props) {
     page,
     shareEnabled,
     onToggleShare,
+    extraTabCount,
     speed,
     onSpeedChange,
     skills,
@@ -185,13 +187,23 @@ export default function InputBar(props: Props) {
             </button>
           </span>
         )}
-        <PageSharePill page={page} enabled={shareEnabled} onToggle={onToggleShare} />
+        <PageSharePill
+          page={page}
+          enabled={shareEnabled}
+          onToggle={onToggleShare}
+          extraTabCount={extraTabCount}
+        />
         <button
           onClick={onMultiTabClick}
-          className="inline-flex items-center gap-1 pl-2 pr-2 py-1 rounded-full text-[11.5px] bg-surface border border-border text-muted hover:text-ink"
-          title="Add another tab"
+          className={`inline-flex items-center gap-1 pl-2 pr-2 py-1 rounded-full text-[11.5px] border transition-colors ${
+            extraTabCount > 0
+              ? 'bg-accent/15 border-accent/40 text-ink'
+              : 'bg-surface border-border text-muted hover:text-ink'
+          }`}
+          title={extraTabCount > 0 ? `${extraTabCount} extra shared tab${extraTabCount === 1 ? '' : 's'}` : 'Add another tab'}
         >
-          <Plus size={11} /> tab
+          <Plus size={11} className={extraTabCount > 0 ? 'text-accent' : ''} />
+          {extraTabCount > 0 ? `${extraTabCount} tab${extraTabCount === 1 ? '' : 's'}` : 'tab'}
         </button>
         {searchCapable && (
           <button

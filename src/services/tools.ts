@@ -1,4 +1,4 @@
-import { searchWeb, fetchUrlContent } from './scraper';
+import { searchWeb, fetchUrlContent, searchAndExtractUrls, bulkFetchUrls } from './scraper';
 import { queryKnowledge } from './rag';
 
 export const ALL_TOOLS_SCHEMA = [
@@ -52,6 +52,23 @@ export const ALL_TOOLS_SCHEMA = [
         required: ['query'],
       },
     },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'deep_research',
+      description: 'Performs a deep, comprehensive research task by searching the web and concurrently reading up to 30 URLs to synthesize a massive report.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The deep research topic to investigate.',
+          },
+        },
+        required: ['query'],
+      },
+    },
   }
 ];
 
@@ -78,6 +95,13 @@ export async function executeTool(name: string, args: Record<string, any>, embed
         });
         if (!kbRes || kbRes.length === 0) return 'No relevant knowledge found.';
         return 'Knowledge Base Context:\n' + kbRes.map((r: any) => `[Source: ${r.docName}]\n"""\n${r.text}\n"""`).join('\n\n');
+        
+      case 'deep_research':
+        if (!args.query) return 'Error: query is required.';
+        const urls = await searchAndExtractUrls(args.query, 30);
+        if (!urls || urls.length === 0) return 'Error: Could not find any URLs for deep research.';
+        const bulkRes = await bulkFetchUrls(urls, 5);
+        return bulkRes || 'Failed to fetch contents for deep research.';
         
       default:
         return `Error: Unknown tool ${name}`;

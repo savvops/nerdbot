@@ -110,6 +110,7 @@ export interface Skill {
 }
 
 export interface PageContext {
+  tabId?: number;
   url: string;
   title: string;
   selection?: string;

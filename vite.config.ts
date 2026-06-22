@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
-import { copyFileSync, mkdirSync, writeFileSync, existsSync } from 'fs';
+import { copyFileSync, mkdirSync, existsSync } from 'fs';
 
 export default defineConfig({
   plugins: [
@@ -14,12 +14,8 @@ export default defineConfig({
         copyFileSync(resolve(__dirname, 'manifest.json'), resolve(dist, 'manifest.json'));
         const iconsDir = resolve(dist, 'icons');
         if (!existsSync(iconsDir)) mkdirSync(iconsDir, { recursive: true });
-        const onePx = Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgAAIAAAUAAen63NgAAAAASUVORK5CYII=',
-          'base64'
-        );
         ['16', '32', '48', '128'].forEach((s) => {
-          writeFileSync(resolve(iconsDir, `icon${s}.png`), onePx);
+          copyFileSync(resolve(__dirname, 'icons', `icon${s}.png`), resolve(iconsDir, `icon${s}.png`));
         });
       },
     },

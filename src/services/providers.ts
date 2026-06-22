@@ -71,9 +71,13 @@ async function streamGemini(req: StreamRequest): Promise<string> {
       if (m.toolCalls && m.toolCalls.length > 0) {
         return {
           role: 'model',
-          parts: m.toolCalls.map(tc => ({
-            functionCall: { name: tc.name, args: tc.args }
-          }))
+          parts: m.toolCalls.map(tc => {
+            if (tc._rawPart) return tc._rawPart;
+            const { id, ...originalCall } = tc;
+            return {
+              functionCall: originalCall
+            };
+          })
         };
       }
       const parts: any[] = [];
@@ -129,9 +133,9 @@ async function streamGemini(req: StreamRequest): Promise<string> {
         for (const p of parts) {
           if (p.functionCall && req.onToolCall) {
             req.onToolCall({
+              ...p.functionCall,
               id: p.functionCall.name + '_' + Date.now(),
-              name: p.functionCall.name,
-              args: p.functionCall.args,
+              _rawPart: p,
             });
           }
           if (typeof p?.text === 'string') {

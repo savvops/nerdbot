@@ -434,15 +434,21 @@ export default function App() {
       if (!opts.autoResumeSysPrompt) {
         // Gather page context (current tab + extras)
         const includedPages: PageContext[] = [];
+        let currentTabId: number | undefined;
         if (shareEnabled) {
           setPendingLabel('Reading page');
           const cur = await getPageText();
-          if (cur) includedPages.push(cur);
+          if (cur) {
+            includedPages.push(cur);
+            currentTabId = cur.tabId;
+          }
         }
         for (const tabId of extraTabIds) {
+          if (currentTabId !== undefined && tabId === currentTabId) continue;
           const t = await getTabText(tabId);
           if (t) {
             includedPages.push({
+              tabId: t.tabId,
               url: t.url,
               title: t.title,
               text: t.text,
@@ -520,9 +526,18 @@ export default function App() {
                 `You have internet access for this query. Do NOT say you cannot access real-time data or the internet. ` +
                 `Answer based on these results and cite sources.\n` +
                 `[Web Search Results for: "${searchQuery}"]\n"""\n${results.slice(0, 8000)}\n"""`;
+            } else {
+              sys +=
+                `\n\n[Web Search Attempt]\n` +
+                `A live web search was attempted for "${searchQuery}", but no results were returned. ` +
+                `Do not claim to have current web data for this query. Ask the user to retry or provide a URL if current facts are required.`;
             }
           } catch (e) {
             console.warn('Web search injection failed:', e);
+            sys +=
+              `\n\n[Web Search Attempt]\n` +
+              `A live web search was attempted, but the search request failed. ` +
+              `Do not claim to have current web data for this query. Ask the user to retry or provide a URL if current facts are required.`;
           }
         }
       }
@@ -801,6 +816,10 @@ export default function App() {
   const visionCapable = isVisionCapable(settings);
   const searchCapable = isSearchCapable(settings);
   const cfg = activeProvider(settings);
+  const extraTabCount =
+    shareEnabled && page?.tabId !== undefined
+      ? extraTabIds.filter((id) => id !== page.tabId).length
+      : extraTabIds.length;
   // Embedding provider: prefer Gemini (768-dim, always compatible); fall back to active provider.
   const embedProviderCfg = settings.providers.gemini.apiKey
     ? settings.providers.gemini
@@ -884,6 +903,7 @@ export default function App() {
         page={page}
         shareEnabled={shareEnabled}
         onToggleShare={() => setShareEnabled((v) => !v)}
+        extraTabCount={extraTabCount}
         speed={settings.speed}
         onSpeedChange={(s) => persistSettings({ ...settings, speed: s })}
         skills={skills}
@@ -1042,6 +1062,7 @@ export default function App() {
       <MultiTabModal
         open={multiTabOpen}
         selected={extraTabIds}
+        excludedTabId={shareEnabled ? page?.tabId : undefined}
         onClose={() => setMultiTabOpen(false)}
         onConfirm={(ids) => {
           setExtraTabIds(ids);

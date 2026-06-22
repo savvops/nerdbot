@@ -6,19 +6,22 @@ import type { SharedTab } from '../../services/types';
 interface Props {
   open: boolean;
   selected: number[];
+  excludedTabId?: number;
   onClose: () => void;
   onConfirm: (tabIds: number[]) => void;
 }
 
-export default function MultiTabModal({ open, selected, onClose, onConfirm }: Props) {
+export default function MultiTabModal({ open, selected, excludedTabId, onClose, onConfirm }: Props) {
   const [tabs, setTabs] = useState<SharedTab[]>([]);
   const [picked, setPicked] = useState<Set<number>>(new Set(selected));
 
   useEffect(() => {
     if (!open) return;
-    setPicked(new Set(selected));
-    listTabs().then(setTabs);
-  }, [open, selected]);
+    setPicked(new Set(selected.filter((id) => id !== excludedTabId)));
+    listTabs().then((items) => {
+      setTabs(items.filter((tab) => tab.tabId !== excludedTabId));
+    });
+  }, [open, selected, excludedTabId]);
 
   if (!open) return null;
 
