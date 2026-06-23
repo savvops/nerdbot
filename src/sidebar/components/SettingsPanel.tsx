@@ -1,9 +1,23 @@
-import { useState, useEffect } from 'react';
-import { ExternalLink, Eye, EyeOff, X, Plus, Trash2, Check, Pencil } from 'lucide-react';
-import type { ProviderId, Settings, Soul } from '../../services/types';
-import { PROVIDER_DOCS, PROVIDER_LABELS } from '../../services/config';
-import { memoryProvider } from '../../services/memoryProvider';
-import { DEFAULT_SOUL_PROMPT } from '../../services/souls';
+import { useState, useEffect } from "react";
+import {
+  ExternalLink,
+  Eye,
+  EyeOff,
+  X,
+  Plus,
+  Trash2,
+  Check,
+  Pencil,
+} from "lucide-react";
+import type {
+  ProviderId,
+  SearchProviderId,
+  Settings,
+  Soul,
+} from "../../services/types";
+import { PROVIDER_DOCS, PROVIDER_LABELS } from "../../services/config";
+import { memoryProvider } from "../../services/memoryProvider";
+import { DEFAULT_SOUL_PROMPT } from "../../services/souls";
 
 interface Props {
   open: boolean;
@@ -11,23 +25,51 @@ interface Props {
   onChange: (s: Settings) => void;
   onClose: () => void;
   souls: Soul[];
-  onCreateSoul: (input: Pick<Soul, 'name' | 'emoji' | 'systemPrompt'>) => Promise<Soul>;
-  onUpdateSoul: (id: string, patch: Partial<Pick<Soul, 'name' | 'emoji' | 'systemPrompt'>>) => Promise<void>;
+  onCreateSoul: (
+    input: Pick<Soul, "name" | "emoji" | "systemPrompt">,
+  ) => Promise<Soul>;
+  onUpdateSoul: (
+    id: string,
+    patch: Partial<Pick<Soul, "name" | "emoji" | "systemPrompt">>,
+  ) => Promise<void>;
   onDeleteSoul: (id: string) => Promise<void>;
   onSoulsChange: (souls: Soul[]) => void;
 }
 
-const PROVIDER_ORDER: ProviderId[] = ['gemini', 'openai', 'openrouter', 'anthropic', 'lmstudio', 'ollama'];
+const PROVIDER_ORDER: ProviderId[] = [
+  "gemini",
+  "openai",
+  "openrouter",
+  "anthropic",
+  "lmstudio",
+  "ollama",
+];
+const SEARCH_PROVIDER_ORDER: SearchProviderId[] = [
+  "jina",
+  "searxng",
+  "duckduckgo",
+];
+const SEARCH_PROVIDER_LABELS: Record<SearchProviderId, string> = {
+  jina: "Jina Search",
+  searxng: "SearXNG (self-hosted)",
+  duckduckgo: "DuckDuckGo HTML",
+};
 
 export default function SettingsPanel({
-  open, settings, onChange, onClose,
-  souls, onCreateSoul, onUpdateSoul, onDeleteSoul,
+  open,
+  settings,
+  onChange,
+  onClose,
+  souls,
+  onCreateSoul,
+  onUpdateSoul,
+  onDeleteSoul,
 }: Props) {
   const [showKey, setShowKey] = useState(false);
 
   // Memory state
-  const [facts, setFacts] = useState('');
-  const [userProfile, setUserProfile] = useState('');
+  const [facts, setFacts] = useState("");
+  const [userProfile, setUserProfile] = useState("");
   const [factsSaved, setFactsSaved] = useState(false);
   const [userSaved, setUserSaved] = useState(false);
 
@@ -50,10 +92,10 @@ export default function SettingsPanel({
   };
 
   // Souls edit state
-  const [editingId, setEditingId] = useState<string | 'new' | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmoji, setEditEmoji] = useState('');
-  const [editPrompt, setEditPrompt] = useState('');
+  const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmoji, setEditEmoji] = useState("");
+  const [editPrompt, setEditPrompt] = useState("");
 
   const beginEdit = (soul: Soul) => {
     setEditingId(soul.id);
@@ -63,9 +105,9 @@ export default function SettingsPanel({
   };
 
   const beginNew = () => {
-    setEditingId('new');
-    setEditName('');
-    setEditEmoji('✨');
+    setEditingId("new");
+    setEditName("");
+    setEditEmoji("✨");
     setEditPrompt(DEFAULT_SOUL_PROMPT);
   };
 
@@ -73,10 +115,18 @@ export default function SettingsPanel({
 
   const commitEdit = async () => {
     if (!editName.trim() || !editPrompt.trim()) return;
-    if (editingId === 'new') {
-      await onCreateSoul({ name: editName.trim(), emoji: editEmoji || '✨', systemPrompt: editPrompt });
+    if (editingId === "new") {
+      await onCreateSoul({
+        name: editName.trim(),
+        emoji: editEmoji || "✨",
+        systemPrompt: editPrompt,
+      });
     } else if (editingId) {
-      await onUpdateSoul(editingId, { name: editName.trim(), emoji: editEmoji || '✨', systemPrompt: editPrompt });
+      await onUpdateSoul(editingId, {
+        name: editName.trim(),
+        emoji: editEmoji || "✨",
+        systemPrompt: editPrompt,
+      });
     }
     setEditingId(null);
   };
@@ -90,6 +140,16 @@ export default function SettingsPanel({
       providers: {
         ...settings.providers,
         [settings.activeProvider]: { ...provider, ...patch },
+      },
+    });
+  };
+
+  const updateSearch = (patch: Partial<Settings["search"]>) => {
+    onChange({
+      ...settings,
+      search: {
+        ...settings.search,
+        ...patch,
       },
     });
   };
@@ -119,8 +179,8 @@ export default function SettingsPanel({
                   onClick={() => onChange({ ...settings, activeProvider: id })}
                   className={`px-2.5 py-2 text-[12.5px] rounded-lg border transition-colors text-left ${
                     settings.activeProvider === id
-                      ? 'bg-accent/15 border-accent/50 text-ink'
-                      : 'bg-bg border-border text-muted hover:text-ink'
+                      ? "bg-accent/15 border-accent/50 text-ink"
+                      : "bg-bg border-border text-muted hover:text-ink"
                   }`}
                 >
                   {PROVIDER_LABELS[id]}
@@ -144,16 +204,20 @@ export default function SettingsPanel({
           >
             <div className="flex items-center gap-1 bg-bg border border-border rounded-lg px-2.5 focus-within:border-accent/50">
               <input
-                type={showKey ? 'text' : 'password'}
+                type={showKey ? "text" : "password"}
                 value={provider.apiKey}
                 onChange={(e) => updateProvider({ apiKey: e.target.value })}
-                placeholder={provider.id === 'lmstudio' || provider.id === 'ollama' ? 'Not required' : 'sk-…'}
+                placeholder={
+                  provider.id === "lmstudio" || provider.id === "ollama"
+                    ? "Not required"
+                    : "sk-…"
+                }
                 className="flex-1 py-2 text-[13px] outline-none"
               />
               <button
                 onClick={() => setShowKey((v) => !v)}
                 className="p-1 text-muted hover:text-ink"
-                title={showKey ? 'Hide' : 'Show'}
+                title={showKey ? "Hide" : "Show"}
               >
                 {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
@@ -179,25 +243,31 @@ export default function SettingsPanel({
             <Field label="Quality model">
               <input
                 value={provider.qualityModel}
-                onChange={(e) => updateProvider({ qualityModel: e.target.value })}
+                onChange={(e) =>
+                  updateProvider({ qualityModel: e.target.value })
+                }
                 className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
               />
             </Field>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fast image model">
               <input
-                value={provider.fastImageModel || ''}
-                onChange={(e) => updateProvider({ fastImageModel: e.target.value })}
+                value={provider.fastImageModel || ""}
+                onChange={(e) =>
+                  updateProvider({ fastImageModel: e.target.value })
+                }
                 placeholder="e.g. gemini-2.0-flash"
                 className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
               />
             </Field>
             <Field label="Quality image model">
               <input
-                value={provider.qualityImageModel || ''}
-                onChange={(e) => updateProvider({ qualityImageModel: e.target.value })}
+                value={provider.qualityImageModel || ""}
+                onChange={(e) =>
+                  updateProvider({ qualityImageModel: e.target.value })
+                }
                 placeholder="e.g. imagen-3.0-generate-002"
                 className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
               />
@@ -207,55 +277,66 @@ export default function SettingsPanel({
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fast audio model">
               <input
-                value={provider.fastAudioModel || ''}
-                onChange={(e) => updateProvider({ fastAudioModel: e.target.value })}
+                value={provider.fastAudioModel || ""}
+                onChange={(e) =>
+                  updateProvider({ fastAudioModel: e.target.value })
+                }
                 placeholder="e.g. gemini-2.0-flash"
                 className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
               />
             </Field>
             <Field label="Quality audio model">
               <input
-                value={provider.qualityAudioModel || ''}
-                onChange={(e) => updateProvider({ qualityAudioModel: e.target.value })}
+                value={provider.qualityAudioModel || ""}
+                onChange={(e) =>
+                  updateProvider({ qualityAudioModel: e.target.value })
+                }
                 placeholder="e.g. gemini-2.5-pro"
                 className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
               />
             </Field>
           </div>
 
-          {provider.id === 'gemini' && (
+          {provider.id === "gemini" && (
             <Field label="Embedding model (for Knowledge Base / projects)">
               <input
-                value={provider.embeddingModel || ''}
-                onChange={(e) => updateProvider({ embeddingModel: e.target.value })}
+                value={provider.embeddingModel || ""}
+                onChange={(e) =>
+                  updateProvider({ embeddingModel: e.target.value })
+                }
                 placeholder="e.g. gemini-embedding-001 or text-embedding-004"
                 className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
               />
               <div className="text-[10.5px] text-soft mt-1">
-                Used to embed project files & queries. Leave blank for the default
-                (<code className="text-ink/80">gemini-embedding-001</code>). Other options:{' '}
-                <code className="text-ink/80">gemini-embedding-2</code>,{' '}
-                <code className="text-ink/80">gemini-embedding-2-preview</code>. List your
-                key's available models with <code className="text-ink/80">/v1beta/models</code>.
+                Used to embed project files & queries. Leave blank for the
+                default (
+                <code className="text-ink/80">gemini-embedding-001</code>).
+                Other options:{" "}
+                <code className="text-ink/80">gemini-embedding-2</code>,{" "}
+                <code className="text-ink/80">gemini-embedding-2-preview</code>.
+                List your key's available models with{" "}
+                <code className="text-ink/80">/v1beta/models</code>.
               </div>
             </Field>
           )}
 
-          {(provider.id === 'lmstudio' || provider.id === 'ollama') && (
+          {(provider.id === "lmstudio" || provider.id === "ollama") && (
             <>
               <Field label="Vision / multimodal">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={!!provider.visionEnabled}
-                    onChange={(e) => updateProvider({ visionEnabled: e.target.checked })}
+                    onChange={(e) =>
+                      updateProvider({ visionEnabled: e.target.checked })
+                    }
                     className="w-3.5 h-3.5 accent-[rgb(var(--nb-accent))]"
                   />
                   <span className="text-[12.5px] text-soft">
-                    Enable image &amp; screenshot attachments
-                    {' '}(requires a multimodal model like{' '}
-                    <code className="text-ink/80">llava</code>,{' '}
-                    <code className="text-ink/80">llama3.2-vision</code>, or{' '}
+                    Enable image &amp; screenshot attachments (requires a
+                    multimodal model like{" "}
+                    <code className="text-ink/80">llava</code>,{" "}
+                    <code className="text-ink/80">llama3.2-vision</code>, or{" "}
                     <code className="text-ink/80">qwen2-vl</code>)
                   </span>
                 </label>
@@ -263,15 +344,29 @@ export default function SettingsPanel({
 
               <Field label="Embedding model (for Knowledge Base)">
                 <input
-                  value={provider.embeddingModel || ''}
-                  onChange={(e) => updateProvider({ embeddingModel: e.target.value })}
-                  placeholder={provider.id === 'ollama' ? 'nomic-embed-text' : 'nomic-embed-text-v1.5'}
+                  value={provider.embeddingModel || ""}
+                  onChange={(e) =>
+                    updateProvider({ embeddingModel: e.target.value })
+                  }
+                  placeholder={
+                    provider.id === "ollama"
+                      ? "nomic-embed-text"
+                      : "nomic-embed-text-v1.5"
+                  }
                   className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
                 />
                 <div className="text-[10.5px] text-soft mt-1">
-                  Used when no Gemini key is configured. Returns 768-dim vectors that match the knowledge store.
-                  {provider.id === 'ollama' && (
-                    <> Run <code className="text-ink/80">ollama pull nomic-embed-text</code> first.</>
+                  Used when no Gemini key is configured. Returns 768-dim vectors
+                  that match the knowledge store.
+                  {provider.id === "ollama" && (
+                    <>
+                      {" "}
+                      Run{" "}
+                      <code className="text-ink/80">
+                        ollama pull nomic-embed-text
+                      </code>{" "}
+                      first.
+                    </>
                   )}
                 </div>
               </Field>
@@ -285,7 +380,9 @@ export default function SettingsPanel({
               max={2}
               step={0.05}
               value={settings.temperature}
-              onChange={(e) => onChange({ ...settings, temperature: Number(e.target.value) })}
+              onChange={(e) =>
+                onChange({ ...settings, temperature: Number(e.target.value) })
+              }
               className="w-full accent-[rgb(var(--nb-accent))]"
             />
           </Field>
@@ -297,24 +394,130 @@ export default function SettingsPanel({
               max={16000}
               step={128}
               value={settings.maxTokens}
-              onChange={(e) => onChange({ ...settings, maxTokens: Number(e.target.value) })}
+              onChange={(e) =>
+                onChange({ ...settings, maxTokens: Number(e.target.value) })
+              }
               className="w-full accent-[rgb(var(--nb-accent))]"
             />
           </Field>
 
+          {/* ── Web Search ── */}
+          <div className="border-t border-border pt-4">
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">
+              Web Search
+            </div>
+            <div className="space-y-4">
+              <Field label="Search provider">
+                <select
+                  value={settings.search.provider}
+                  onChange={(e) =>
+                    updateSearch({
+                      provider: e.target.value as SearchProviderId,
+                    })
+                  }
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-[13px] outline-none"
+                >
+                  {SEARCH_PROVIDER_ORDER.map((id) => (
+                    <option key={id} value={id}>
+                      {SEARCH_PROVIDER_LABELS[id]}
+                    </option>
+                  ))}
+                </select>
+                <div className="text-[10.5px] text-soft mt-1">
+                  Public-safe default is Jina. Use SearXNG for a sovereign
+                  self-hosted search backend.
+                </div>
+              </Field>
+
+              {settings.search.provider === "searxng" ||
+              settings.search.fallbackProviders.includes("searxng") ? (
+                <Field label="SearXNG URL">
+                  <input
+                    value={settings.search.searxngUrl}
+                    onChange={(e) =>
+                      updateSearch({ searxngUrl: e.target.value })
+                    }
+                    placeholder="http://localhost:8080"
+                    className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-[13px] outline-none"
+                  />
+                  <div className="text-[10.5px] text-soft mt-1">
+                    Nerdbot calls{" "}
+                    <code className="text-ink/80">
+                      /search?q=...&amp;format=json
+                    </code>{" "}
+                    on this base URL.
+                  </div>
+                </Field>
+              ) : null}
+
+              <Field
+                label={`Max search results · ${settings.search.maxResults}`}
+              >
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={settings.search.maxResults}
+                  onChange={(e) =>
+                    updateSearch({ maxResults: Number(e.target.value) })
+                  }
+                  className="w-full accent-[rgb(var(--nb-accent))]"
+                />
+              </Field>
+
+              <Field label="Fallback order">
+                <div className="text-[11px] leading-5 text-soft rounded-lg border border-border bg-bg px-3 py-2">
+                  {settings.search.provider} →{" "}
+                  {settings.search.fallbackProviders.join(" → ")}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateSearch({
+                      provider: "jina",
+                      fallbackProviders: ["searxng", "duckduckgo"],
+                    })
+                  }
+                  className="mt-2 text-[11px] text-accent hover:underline"
+                >
+                  Reset to public-safe default
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateSearch({
+                      provider: "searxng",
+                      fallbackProviders: ["jina", "duckduckgo"],
+                    })
+                  }
+                  className="ml-3 mt-2 text-[11px] text-accent hover:underline"
+                >
+                  Use sovereign mode
+                </button>
+              </Field>
+            </div>
+          </div>
+
           {/* ── Knowledge & Context ── */}
           <div className="border-t border-border pt-4">
-            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">Knowledge & Context</div>
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">
+              Knowledge & Context
+            </div>
 
             <div className="space-y-4">
-              <Field label={`RAG chunks per query · ${settings.ragChunks ?? 5}`}>
+              <Field
+                label={`RAG chunks per query · ${settings.ragChunks ?? 5}`}
+              >
                 <input
                   type="range"
                   min={1}
                   max={10}
                   step={1}
                   value={settings.ragChunks ?? 5}
-                  onChange={(e) => onChange({ ...settings, ragChunks: Number(e.target.value) })}
+                  onChange={(e) =>
+                    onChange({ ...settings, ragChunks: Number(e.target.value) })
+                  }
                   className="w-full accent-[rgb(var(--nb-accent))]"
                 />
                 <div className="flex justify-between text-[10px] text-soft mt-0.5">
@@ -325,7 +528,7 @@ export default function SettingsPanel({
               </Field>
 
               <Field
-                label={`Context limit · ${settings.maxContextTokens > 0 ? `${(settings.maxContextTokens / 1000).toFixed(0)}K tokens` : 'Auto'}`}
+                label={`Context limit · ${settings.maxContextTokens > 0 ? `${(settings.maxContextTokens / 1000).toFixed(0)}K tokens` : "Auto"}`}
               >
                 <input
                   type="range"
@@ -333,7 +536,12 @@ export default function SettingsPanel({
                   max={256000}
                   step={4000}
                   value={settings.maxContextTokens}
-                  onChange={(e) => onChange({ ...settings, maxContextTokens: Number(e.target.value) })}
+                  onChange={(e) =>
+                    onChange({
+                      ...settings,
+                      maxContextTokens: Number(e.target.value),
+                    })
+                  }
                   className="w-full accent-[rgb(var(--nb-accent))]"
                 />
                 <div className="flex justify-between text-[10px] text-soft mt-0.5">
@@ -341,7 +549,8 @@ export default function SettingsPanel({
                   <span>256K</span>
                 </div>
                 <div className="text-[10.5px] text-soft mt-1">
-                  Old messages are auto-trimmed when the chat exceeds this limit. Set to Auto to use the provider's max window.
+                  Old messages are auto-trimmed when the chat exceeds this
+                  limit. Set to Auto to use the provider's max window.
                 </div>
               </Field>
             </div>
@@ -349,20 +558,26 @@ export default function SettingsPanel({
 
           {/* ── Personas (Souls) ── */}
           <div className="border-t border-border pt-4">
-            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">Personas</div>
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">
+              Personas
+            </div>
             <div className="space-y-1.5">
               {/* None option */}
               <button
-                onClick={() => onChange({ ...settings, activeSoulId: undefined })}
+                onClick={() =>
+                  onChange({ ...settings, activeSoulId: undefined })
+                }
                 className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left text-[12.5px] transition-colors ${
                   !settings.activeSoulId
-                    ? 'bg-accent/15 border-accent/50 text-ink'
-                    : 'bg-bg border-border text-muted hover:text-ink'
+                    ? "bg-accent/15 border-accent/50 text-ink"
+                    : "bg-bg border-border text-muted hover:text-ink"
                 }`}
               >
                 <span>🤖</span>
                 <span className="flex-1">Default (no persona)</span>
-                {!settings.activeSoulId && <Check size={12} className="text-accent" />}
+                {!settings.activeSoulId && (
+                  <Check size={12} className="text-accent" />
+                )}
               </button>
 
               {souls.map((soul) =>
@@ -383,17 +598,23 @@ export default function SettingsPanel({
                     key={soul.id}
                     className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[12.5px] transition-colors ${
                       settings.activeSoulId === soul.id
-                        ? 'bg-accent/15 border-accent/50'
-                        : 'bg-bg border-border'
+                        ? "bg-accent/15 border-accent/50"
+                        : "bg-bg border-border"
                     }`}
                   >
                     <button
                       className="flex items-center gap-2 flex-1 text-left min-w-0"
-                      onClick={() => onChange({ ...settings, activeSoulId: soul.id })}
+                      onClick={() =>
+                        onChange({ ...settings, activeSoulId: soul.id })
+                      }
                     >
                       <span>{soul.emoji}</span>
-                      <span className="flex-1 truncate text-ink">{soul.name}</span>
-                      {settings.activeSoulId === soul.id && <Check size={12} className="text-accent shrink-0" />}
+                      <span className="flex-1 truncate text-ink">
+                        {soul.name}
+                      </span>
+                      {settings.activeSoulId === soul.id && (
+                        <Check size={12} className="text-accent shrink-0" />
+                      )}
                     </button>
                     <button
                       onClick={() => beginEdit(soul)}
@@ -405,7 +626,8 @@ export default function SettingsPanel({
                     <button
                       onClick={async () => {
                         await onDeleteSoul(soul.id);
-                        if (settings.activeSoulId === soul.id) onChange({ ...settings, activeSoulId: undefined });
+                        if (settings.activeSoulId === soul.id)
+                          onChange({ ...settings, activeSoulId: undefined });
                       }}
                       className="p-1 text-muted hover:text-red-400 rounded"
                       title="Delete"
@@ -413,10 +635,10 @@ export default function SettingsPanel({
                       <Trash2 size={11} />
                     </button>
                   </div>
-                )
+                ),
               )}
 
-              {editingId === 'new' ? (
+              {editingId === "new" ? (
                 <SoulEditForm
                   name={editName}
                   emoji={editEmoji}
@@ -440,44 +662,67 @@ export default function SettingsPanel({
 
           {/* ── Memory ── */}
           <div className="border-t border-border pt-4">
-            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">Memory</div>
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">
+              Memory
+            </div>
             <div className="text-[10.5px] text-soft mb-3">
-              Injected into every system prompt. Edit to teach Nerdbot persistent facts about you.
+              Injected into every system prompt. Edit to teach Nerdbot
+              persistent facts about you.
             </div>
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11.5px] text-muted font-medium">Long-term facts</label>
+                  <label className="text-[11.5px] text-muted font-medium">
+                    Long-term facts
+                  </label>
                   <button
                     onClick={saveFacts}
                     className="text-[11px] text-accent hover:underline flex items-center gap-1"
                   >
-                    {factsSaved ? <><Check size={10} /> Saved</> : 'Save'}
+                    {factsSaved ? (
+                      <>
+                        <Check size={10} /> Saved
+                      </>
+                    ) : (
+                      "Save"
+                    )}
                   </button>
                 </div>
                 <textarea
                   value={facts}
                   onChange={(e) => setFacts(e.target.value)}
                   rows={4}
-                  placeholder={"- Prefers TypeScript over JavaScript\n- Works on macOS\n- Uses Neovim"}
+                  placeholder={
+                    "- Prefers TypeScript over JavaScript\n- Works on macOS\n- Uses Neovim"
+                  }
                   className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[12px] outline-none resize-none font-mono"
                 />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11.5px] text-muted font-medium">User profile</label>
+                  <label className="text-[11.5px] text-muted font-medium">
+                    User profile
+                  </label>
                   <button
                     onClick={saveUserProfile}
                     className="text-[11px] text-accent hover:underline flex items-center gap-1"
                   >
-                    {userSaved ? <><Check size={10} /> Saved</> : 'Save'}
+                    {userSaved ? (
+                      <>
+                        <Check size={10} /> Saved
+                      </>
+                    ) : (
+                      "Save"
+                    )}
                   </button>
                 </div>
                 <textarea
                   value={userProfile}
                   onChange={(e) => setUserProfile(e.target.value)}
                   rows={3}
-                  placeholder={"Senior full-stack engineer.\nBuilds browser extensions and AI tools.\nBlunt communication style preferred."}
+                  placeholder={
+                    "Senior full-stack engineer.\nBuilds browser extensions and AI tools.\nBlunt communication style preferred."
+                  }
                   className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[12px] outline-none resize-none font-mono"
                 />
               </div>
@@ -486,25 +731,27 @@ export default function SettingsPanel({
 
           <Field label="Theme">
             <div className="grid grid-cols-3 gap-1.5">
-              {(['dark', 'light', 'system'] as const).map((t) => (
+              {(["dark", "light", "system"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => {
                     onChange({ ...settings, theme: t });
                     const root = document.documentElement;
-                    if (t === 'system') {
-                      const prefDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                      root.classList.toggle('dark', prefDark);
-                      root.classList.toggle('light', !prefDark);
+                    if (t === "system") {
+                      const prefDark = window.matchMedia(
+                        "(prefers-color-scheme: dark)",
+                      ).matches;
+                      root.classList.toggle("dark", prefDark);
+                      root.classList.toggle("light", !prefDark);
                     } else {
-                      root.classList.toggle('dark', t === 'dark');
-                      root.classList.toggle('light', t === 'light');
+                      root.classList.toggle("dark", t === "dark");
+                      root.classList.toggle("light", t === "light");
                     }
                   }}
                   className={`px-2.5 py-2 text-[12.5px] rounded-lg border transition-colors capitalize ${
                     settings.theme === t
-                      ? 'bg-accent/15 border-accent/50 text-ink'
-                      : 'bg-bg border-border text-muted hover:text-ink'
+                      ? "bg-accent/15 border-accent/50 text-ink"
+                      : "bg-bg border-border text-muted hover:text-ink"
                   }`}
                 >
                   {t}
@@ -523,11 +770,23 @@ export default function SettingsPanel({
 }
 
 function SoulEditForm({
-  name, emoji, prompt, onName, onEmoji, onPrompt, onSave, onCancel,
+  name,
+  emoji,
+  prompt,
+  onName,
+  onEmoji,
+  onPrompt,
+  onSave,
+  onCancel,
 }: {
-  name: string; emoji: string; prompt: string;
-  onName: (v: string) => void; onEmoji: (v: string) => void; onPrompt: (v: string) => void;
-  onSave: () => void; onCancel: () => void;
+  name: string;
+  emoji: string;
+  prompt: string;
+  onName: (v: string) => void;
+  onEmoji: (v: string) => void;
+  onPrompt: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
 }) {
   return (
     <div className="bg-elevated border border-border rounded-lg p-3 space-y-2">

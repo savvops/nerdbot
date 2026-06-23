@@ -1,8 +1,8 @@
-export type Role = 'system' | 'user' | 'assistant' | 'tool';
+export type Role = "system" | "user" | "assistant" | "tool";
 
 export interface Attachment {
   id: string;
-  kind: 'image' | 'pdf' | 'screenshot' | 'audio';
+  kind: "image" | "pdf" | "screenshot" | "audio";
   name: string;
   mimeType: string;
   /** base64-encoded data (no `data:` prefix) */
@@ -54,8 +54,30 @@ export interface Soul {
   updatedAt: number;
 }
 
-export type ProviderId = 'gemini' | 'openai' | 'openrouter' | 'lmstudio' | 'ollama' | 'anthropic';
-export type SpeedMode = 'fast' | 'quality';
+export type ProviderId =
+  | "gemini"
+  | "openai"
+  | "openrouter"
+  | "lmstudio"
+  | "ollama"
+  | "anthropic";
+export type SpeedMode = "fast" | "quality";
+export type SearchProviderId = "searxng" | "jina" | "duckduckgo";
+
+export interface SearchSettings {
+  /** Public-safe default is Jina; SearXNG can be selected for sovereign/local search. */
+  provider: SearchProviderId;
+  /** Base URL for self-hosted SearXNG, e.g. http://localhost:8080 */
+  searxngUrl: string;
+  /** Ordered fallback providers after the primary provider fails or returns no results. */
+  fallbackProviders: SearchProviderId[];
+  /** Max result snippets to inject into the model context. */
+  maxResults: number;
+  /** Reserved for future deep search: fetch top result pages after search. */
+  fetchTopPages: boolean;
+  /** Reserved for future deep search: max pages to fetch when fetchTopPages is enabled. */
+  maxFetchedPages: number;
+}
 
 export interface ProviderConfig {
   id: ProviderId;
@@ -79,7 +101,7 @@ export interface Settings {
   maxTokens: number;
   shareTab: boolean;
   webSearch: boolean;
-  theme: 'dark' | 'light' | 'system';
+  theme: "dark" | "light" | "system";
   providers: Record<ProviderId, ProviderConfig>;
   /** Number of RAG chunks to retrieve per query (1-10, default 5). */
   ragChunks: number;
@@ -87,6 +109,8 @@ export interface Settings {
   maxContextTokens: number;
   /** Active persona soul ID — applied globally to all chats. */
   activeSoulId?: string;
+  /** Web search routing configuration. */
+  search: SearchSettings;
 }
 
 export interface SkillArgument {

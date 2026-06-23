@@ -1,22 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Header from './components/Header';
-import HeroEmpty from './components/HeroEmpty';
-import MessageView from './components/MessageView';
-import TypingIndicator from './components/TypingIndicator';
-import InputBar from './components/InputBar';
-import HistoryDrawer from './components/HistoryDrawer';
-import SettingsPanel from './components/SettingsPanel';
-import AddSkillModal from './components/AddSkillModal';
-import BrowseSkillsModal from './components/BrowseSkillsModal';
-import ErrorBanner from './components/ErrorBanner';
-import SkillArgsModal from './components/SkillArgsModal';
-import MultiTabModal from './components/MultiTabModal';
-import EditMessageModal from './components/EditMessageModal';
-import KnowledgePanel from './components/KnowledgePanel';
-import ContextRing from './components/ContextRing';
-import ProjectModal from './components/ProjectModal';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Header from "./components/Header";
+import HeroEmpty from "./components/HeroEmpty";
+import MessageView from "./components/MessageView";
+import TypingIndicator from "./components/TypingIndicator";
+import InputBar from "./components/InputBar";
+import HistoryDrawer from "./components/HistoryDrawer";
+import SettingsPanel from "./components/SettingsPanel";
+import AddSkillModal from "./components/AddSkillModal";
+import BrowseSkillsModal from "./components/BrowseSkillsModal";
+import ErrorBanner from "./components/ErrorBanner";
+import SkillArgsModal from "./components/SkillArgsModal";
+import MultiTabModal from "./components/MultiTabModal";
+import EditMessageModal from "./components/EditMessageModal";
+import KnowledgePanel from "./components/KnowledgePanel";
+import ContextRing from "./components/ContextRing";
+import ProjectModal from "./components/ProjectModal";
 
-import { executeTool } from '../services/tools';
+import { executeTool } from "../services/tools";
 import {
   appendMessage,
   archiveCurrent,
@@ -34,7 +34,7 @@ import {
   unpinNote,
   updateMessage,
   type PinnedNote,
-} from '../services/chatManager';
+} from "../services/chatManager";
 import {
   activeProvider,
   getMaxContext,
@@ -44,8 +44,12 @@ import {
   loadSettings,
   PROVIDER_COST,
   saveSettings,
-} from '../services/config';
-import { getPageContext, getPageText, getTabText } from '../services/pageContext';
+} from "../services/config";
+import {
+  getPageContext,
+  getPageText,
+  getTabText,
+} from "../services/pageContext";
 import {
   addSkill,
   applySkillArgs,
@@ -55,18 +59,46 @@ import {
   updateSkill,
   resetSkill,
   SUGGESTED_FOLLOWUP_SKILL_IDS,
-} from '../services/skills';
-import { streamCompletion } from '../services/providers';
-import { generateImage, IMAGE_SKILL_ID } from '../services/imageGen';
-import { uid } from '../services/storage';
-import { captureScreenshotAttachment, fileToAttachment } from '../services/attachments';
-import { approxTokens, formatCost } from '../services/tokens';
-import { makeStreamBuffer } from '../services/streamBuffer';
-import { queryKnowledge, knowledgeStats, listFolders, deleteFolder, type KnowledgeFolder } from '../services/rag';
-import { fetchUrlContent, extractUrl, searchWeb, extractSearchQuery } from '../services/scraper';
-import { loadSouls, createSoul, updateSoul, deleteSoul } from '../services/souls';
-import { memoryProvider } from '../services/memoryProvider';
-import type { Attachment, Chat, Message, PageContext, Role, Settings, Skill, Soul } from '../services/types';
+} from "../services/skills";
+import { streamCompletion } from "../services/providers";
+import { generateImage, IMAGE_SKILL_ID } from "../services/imageGen";
+import { uid } from "../services/storage";
+import {
+  captureScreenshotAttachment,
+  fileToAttachment,
+} from "../services/attachments";
+import { approxTokens, formatCost } from "../services/tokens";
+import { makeStreamBuffer } from "../services/streamBuffer";
+import {
+  queryKnowledge,
+  knowledgeStats,
+  listFolders,
+  deleteFolder,
+  type KnowledgeFolder,
+} from "../services/rag";
+import {
+  fetchUrlContent,
+  extractUrl,
+  searchWeb,
+  extractSearchQuery,
+} from "../services/scraper";
+import {
+  loadSouls,
+  createSoul,
+  updateSoul,
+  deleteSoul,
+} from "../services/souls";
+import { memoryProvider } from "../services/memoryProvider";
+import type {
+  Attachment,
+  Chat,
+  Message,
+  PageContext,
+  Role,
+  Settings,
+  Skill,
+  Soul,
+} from "../services/types";
 
 const SYSTEM_BASE = `You are Nerdbot, a friendly, sharp browser-side assistant.
 Be concise and direct. Prefer markdown with headings, bullets, and code blocks where helpful.
@@ -98,9 +130,16 @@ export default function App() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [souls, setSouls] = useState<Soul[]>([]);
 
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [pendingLabel, setPendingLabel] = useState<'Thinking' | 'Reading page' | 'Reading link' | 'Streaming' | 'Searching' | 'Running tools...'>('Thinking');
+  const [pendingLabel, setPendingLabel] = useState<
+    | "Thinking"
+    | "Reading page"
+    | "Reading link"
+    | "Streaming"
+    | "Searching"
+    | "Running tools..."
+  >("Thinking");
   const [error, setError] = useState<string | null>(null);
 
   const [page, setPage] = useState<PageContext | null>(null);
@@ -116,7 +155,9 @@ export default function App() {
   const [projects, setProjects] = useState<KnowledgeFolder[]>([]);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   /** When non-null, opens an existing project in the modal. When 'new', creates one. */
-  const [projectModalTarget, setProjectModalTarget] = useState<string | 'new' | null>(null);
+  const [projectModalTarget, setProjectModalTarget] = useState<
+    string | "new" | null
+  >(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -156,26 +197,31 @@ export default function App() {
   }, []);
 
   const refreshProjects = useCallback(async () => {
-    const [folders, stats] = await Promise.all([listFolders(), knowledgeStats()]);
+    const [folders, stats] = await Promise.all([
+      listFolders(),
+      knowledgeStats(),
+    ]);
     setProjects(folders);
     setKnowledgeCount(stats.chunks);
   }, []);
 
   // Drain quick-chat queue (text the overlay queued for this side panel)
   useEffect(() => {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
-    chrome.storage.local.get(['nerdbot.quickQueue.v1'], (res) => {
-      const q = res['nerdbot.quickQueue.v1'] as { text: string; createdAt: number } | undefined;
+    if (typeof chrome === "undefined" || !chrome.storage?.local) return;
+    chrome.storage.local.get(["nerdbot.quickQueue.v1"], (res) => {
+      const q = res["nerdbot.quickQueue.v1"] as
+        | { text: string; createdAt: number }
+        | undefined;
       if (q?.text && Date.now() - q.createdAt < 30_000) {
         setInput(q.text);
-        chrome.storage.local.remove(['nerdbot.quickQueue.v1']);
+        chrome.storage.local.remove(["nerdbot.quickQueue.v1"]);
       }
     });
 
     const listener = (message: any) => {
-      if (message?.type === 'QUICK_CHAT_QUEUE' && message?.payload?.text) {
+      if (message?.type === "QUICK_CHAT_QUEUE" && message?.payload?.text) {
         setInput(message.payload.text);
-        chrome.storage.local.remove(['nerdbot.quickQueue.v1']);
+        chrome.storage.local.remove(["nerdbot.quickQueue.v1"]);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
@@ -194,11 +240,11 @@ export default function App() {
     tick();
     const id = window.setInterval(tick, 4000);
     const onFocus = () => tick();
-    window.addEventListener('focus', onFocus);
+    window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
       window.clearInterval(id);
-      window.removeEventListener('focus', onFocus);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -211,7 +257,7 @@ export default function App() {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [chat.messages.length, busy]);
 
   const persistSettings = useCallback(async (next: Settings) => {
@@ -222,7 +268,9 @@ export default function App() {
   const handleNewChat = useCallback(
     async (opts: { projectId?: string; keepProject?: boolean } = {}) => {
       abortRef.current?.abort();
-      const fresh = await archiveCurrent(chat, { keepProject: opts.keepProject ?? false });
+      const fresh = await archiveCurrent(chat, {
+        keepProject: opts.keepProject ?? false,
+      });
       // If a specific projectId was passed, override
       if (opts.projectId !== undefined) {
         fresh.projectId = opts.projectId || undefined;
@@ -235,9 +283,9 @@ export default function App() {
       setAttachments([]);
       setExtraTabIds([]);
       setError(null);
-      setInput('');
+      setInput("");
     },
-    [chat]
+    [chat],
   );
 
   const handleNewChatInProject = useCallback(
@@ -245,7 +293,7 @@ export default function App() {
       handleNewChat({ projectId });
       setDrawerOpen(false);
     },
-    [handleNewChat]
+    [handleNewChat],
   );
 
   const handlePickFromHistory = useCallback(
@@ -256,7 +304,7 @@ export default function App() {
       setHistory(await loadHistory());
       setDrawerOpen(false);
     },
-    [chat]
+    [chat],
   );
 
   const handleDeleteHistory = useCallback(async (id: string) => {
@@ -265,12 +313,17 @@ export default function App() {
   }, []);
 
   const handleAddSkill = useCallback(
-    async (input: { name: string; emoji: string; description: string; instructions: string }) => {
+    async (input: {
+      name: string;
+      emoji: string;
+      description: string;
+      instructions: string;
+    }) => {
       const created = await addSkill(input);
       setSkills(await loadSkills());
       setActiveSkill(created);
     },
-    []
+    [],
   );
 
   const handleDeleteSkill = useCallback(async (id: string) => {
@@ -298,10 +351,10 @@ export default function App() {
 
   const handleExport = useCallback(() => {
     const md = exportToMarkdown(chat);
-    const blob = new Blob([md], { type: 'text/markdown' });
-    const a = document.createElement('a');
+    const blob = new Blob([md], { type: "text/markdown" });
+    const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${chat.title.replace(/[^\w-]+/g, '-').toLowerCase()}.md`;
+    a.download = `${chat.title.replace(/[^\w-]+/g, "-").toLowerCase()}.md`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, [chat]);
@@ -313,7 +366,7 @@ export default function App() {
       const next = await pinMessage(chat, m);
       setPinned(next);
     },
-    [chat]
+    [chat],
   );
 
   const handleUnpin = useCallback(async (id: string) => {
@@ -322,10 +375,24 @@ export default function App() {
   }, []);
 
   const buildSystemPrompt = useCallback(
-    (skill: Skill | null, includePages: PageContext[], soul: Soul | null, memorySection: string) => {
+    (
+      skill: Skill | null,
+      includePages: PageContext[],
+      soul: Soul | null,
+      memorySection: string,
+    ) => {
       const now = new Date();
-      const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+      const dateStr = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const timeStr = now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
       const parts = [`Today is ${dateStr}, ${timeStr}.\n\n${SYSTEM_BASE}`];
       if (soul) {
         parts.push(`\n[Active persona: ${soul.name}]\n${soul.systemPrompt}`);
@@ -339,18 +406,20 @@ export default function App() {
         parts.push(`\n[Active skill: ${skill.name}]\n${filled}`);
       }
       includePages.forEach((p, idx) => {
-        const label = includePages.length > 1 ? `Tab ${idx + 1}` : 'Shared tab';
-        const meta = `${label} — ${p.title || 'Untitled'}\nURL: ${p.url}`;
-        const sel = p.selection ? `\nSelected text:\n"""\n${p.selection}\n"""` : '';
-        const tx = p.text ? `\nPage content:\n"""\n${p.text}\n"""` : '';
+        const label = includePages.length > 1 ? `Tab ${idx + 1}` : "Shared tab";
+        const meta = `${label} — ${p.title || "Untitled"}\nURL: ${p.url}`;
+        const sel = p.selection
+          ? `\nSelected text:\n"""\n${p.selection}\n"""`
+          : "";
+        const tx = p.text ? `\nPage content:\n"""\n${p.text}\n"""` : "";
         const tr = p.transcript
           ? `\nVideo transcript:\n"""\n${p.transcript}\n"""`
-          : '';
+          : "";
         parts.push(`\n[${label}]\n${meta}${sel}${tx}${tr}`);
       });
-      return parts.join('\n');
+      return parts.join("\n");
     },
-    []
+    [],
   );
 
   const send = useCallback(
@@ -358,53 +427,64 @@ export default function App() {
       if (!settings) return;
       const trimmed = (opts.userText ?? input).trim();
       const localAtts = [...(opts.attachments ?? attachments)];
-      if (!trimmed && !activeSkill && localAtts.length === 0 && !opts.autoResume) return;
+      if (
+        !trimmed &&
+        !activeSkill &&
+        localAtts.length === 0 &&
+        !opts.autoResume
+      )
+        return;
 
       setError(null);
 
       let next = opts.chatToResume || chat;
       let assistantId: string;
-      let pdfText = '';
-      let fullUserContent = '';
+      let pdfText = "";
+      let fullUserContent = "";
 
       if (!opts.autoResume) {
         // Auto-capture screenshot for Vision context
         if (shareEnabled && isVisionCapable(settings)) {
           try {
-            const res = await chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' });
+            const res = await chrome.runtime.sendMessage({
+              type: "CAPTURE_SCREENSHOT",
+            });
             if (res?.dataUrl) {
               localAtts.push({
                 id: uid(),
-                kind: 'screenshot',
-                name: 'Auto-captured Context',
-                mimeType: 'image/jpeg',
-                data: res.dataUrl.replace(/^data:image\/\w+;base64,/, ''),
+                kind: "screenshot",
+                name: "Auto-captured Context",
+                mimeType: "image/jpeg",
+                data: res.dataUrl.replace(/^data:image\/\w+;base64,/, ""),
                 hidden: true,
               });
             }
           } catch (e) {
-            console.warn('Auto-screenshot failed:', e);
+            console.warn("Auto-screenshot failed:", e);
           }
         }
 
         // PDF text gets prepended to the user message so non-vision providers can see it.
         pdfText = localAtts
-          .filter((a) => a.kind === 'pdf' && a.extractedText)
+          .filter((a) => a.kind === "pdf" && a.extractedText)
           .map((a) => `--- ${a.name} ---\n${a.extractedText}`)
-          .join('\n\n');
+          .join("\n\n");
         const userText =
-          trimmed || (activeSkill ? `(Apply “${activeSkill.name}”.)` : '(See attached.)');
+          trimmed ||
+          (activeSkill ? `(Apply “${activeSkill.name}”.)` : "(See attached.)");
         fullUserContent = pdfText ? `${userText}\n\n${pdfText}` : userText;
 
         if (opts.reuseLastUser) {
           // Used by regenerate — drop everything after the last user message and add a fresh assistant.
-          const lastUser = [...chat.messages].reverse().find((m) => m.role === 'user');
+          const lastUser = [...chat.messages]
+            .reverse()
+            .find((m) => m.role === "user");
           if (!lastUser) return;
           next = truncateAfter(chat, lastUser.id, false);
         } else {
           const userMsg: Message = {
             id: uid(),
-            role: 'user',
+            role: "user",
             content: fullUserContent,
             attachments: localAtts.length > 0 ? localAtts : undefined,
             createdAt: Date.now(),
@@ -415,8 +495,8 @@ export default function App() {
 
       const assistantMsg: Message = {
         id: uid(),
-        role: 'assistant',
-        content: '',
+        role: "assistant",
+        content: "",
         createdAt: Date.now(),
         pending: true,
       };
@@ -424,19 +504,19 @@ export default function App() {
       next = appendMessage(next, assistantMsg);
 
       setChat(next);
-      if (!opts.userText && !opts.autoResume) setInput('');
+      if (!opts.userText && !opts.autoResume) setInput("");
       if (!opts.attachments && !opts.autoResume) setAttachments([]);
       setBusy(true);
-      setPendingLabel('Thinking');
+      setPendingLabel("Thinking");
 
-      let sys = opts.autoResumeSysPrompt || '';
-      
+      let sys = opts.autoResumeSysPrompt || "";
+
       if (!opts.autoResumeSysPrompt) {
         // Gather page context (current tab + extras)
         const includedPages: PageContext[] = [];
         let currentTabId: number | undefined;
         if (shareEnabled) {
-          setPendingLabel('Reading page');
+          setPendingLabel("Reading page");
           const cur = await getPageText();
           if (cur) {
             includedPages.push(cur);
@@ -458,29 +538,31 @@ export default function App() {
         }
 
         // Detect URL in input and fetch content if needed
-        let linkContent = '';
+        let linkContent = "";
         const foundUrl = extractUrl(trimmed);
         if (foundUrl) {
           try {
-            setPendingLabel('Reading link');
+            setPendingLabel("Reading link");
             const content = await fetchUrlContent(foundUrl);
             if (content) {
               linkContent = `\n\n[Link Content: ${foundUrl}]\n"""\n${content}\n"""`;
             }
           } catch (e) {
-            console.warn('URL content fetch failed:', e);
+            console.warn("URL content fetch failed:", e);
           }
         }
 
         // RAG: project chats auto-query their project's KB; loose chats use the global toggle.
-        let ragContext = '';
+        let ragContext = "";
         const projectScope = chat.projectId;
         const useRag = projectScope || (knowledgeEnabled && knowledgeCount > 0);
         if (useRag) {
           try {
-            setPendingLabel('Thinking');
+            setPendingLabel("Thinking");
             const geminiCfg = settings.providers.gemini;
-            const embedCfg = geminiCfg.apiKey ? geminiCfg : settings.providers[settings.activeProvider];
+            const embedCfg = geminiCfg.apiKey
+              ? geminiCfg
+              : settings.providers[settings.activeProvider];
             const ragResults = await queryKnowledge(trimmed, embedCfg.apiKey, {
               baseUrl: embedCfg.baseUrl,
               embeddingModel: embedCfg.embeddingModel,
@@ -488,17 +570,18 @@ export default function App() {
               folderId: projectScope,
             });
             if (ragResults.length > 0) {
-              ragContext = '\n\n[Knowledge Base Context]\n' +
-                ragResults.map((r) =>
-                  `[Source: ${r.docName}]\n"""\n${r.text}\n"""`
-                ).join('\n\n');
+              ragContext =
+                "\n\n[Knowledge Base Context]\n" +
+                ragResults
+                  .map((r) => `[Source: ${r.docName}]\n"""\n${r.text}\n"""`)
+                  .join("\n\n");
             }
           } catch (e) {
-            console.warn('RAG query failed:', e);
+            console.warn("RAG query failed:", e);
           }
         }
 
-        let projectPrompt = '';
+        let projectPrompt = "";
         if (chat.projectId) {
           const proj = projects.find((p) => p.id === chat.projectId);
           if (proj?.systemPrompt) {
@@ -507,19 +590,24 @@ export default function App() {
         }
 
         const activeSoul = settings.activeSoulId
-          ? souls.find((s) => s.id === settings.activeSoulId) ?? null
+          ? (souls.find((s) => s.id === settings.activeSoulId) ?? null)
           : null;
         const memorySection = await memoryProvider.buildSystemPromptSection();
-        sys = buildSystemPrompt(activeSkill, includedPages, activeSoul, memorySection);
+        sys = buildSystemPrompt(
+          activeSkill,
+          includedPages,
+          activeSoul,
+          memorySection,
+        );
         if (projectPrompt) sys += projectPrompt;
         if (ragContext) sys += ragContext;
         if (linkContent) sys += linkContent;
 
         if (settings.webSearch && !hasNativeSearch(settings)) {
           try {
-            setPendingLabel('Searching');
+            setPendingLabel("Searching");
             const searchQuery = extractSearchQuery(trimmed);
-            const results = await searchWeb(searchQuery);
+            const results = await searchWeb(searchQuery, settings.search);
             if (results) {
               sys +=
                 `\n\nIMPORTANT: The following are LIVE web search results retrieved right now. ` +
@@ -533,7 +621,7 @@ export default function App() {
                 `Do not claim to have current web data for this query. Ask the user to retry or provide a URL if current facts are required.`;
             }
           } catch (e) {
-            console.warn('Web search injection failed:', e);
+            console.warn("Web search injection failed:", e);
             sys +=
               `\n\n[Web Search Attempt]\n` +
               `A live web search was attempted, but the search request failed. ` +
@@ -542,26 +630,34 @@ export default function App() {
         }
       }
 
-      if (settings.webSearch && hasNativeSearch(settings) && !opts.autoResume) setPendingLabel('Searching');
-      else setPendingLabel('Streaming');
+      if (settings.webSearch && hasNativeSearch(settings) && !opts.autoResume)
+        setPendingLabel("Searching");
+      else setPendingLabel("Streaming");
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
       // Media-generation skill: route to Gemini media API instead of chat completion
-      if (activeSkill?.id === IMAGE_SKILL_ID || activeSkill?.id === 'builtin-audiogen') {
+      if (
+        activeSkill?.id === IMAGE_SKILL_ID ||
+        activeSkill?.id === "builtin-audiogen"
+      ) {
         try {
-          setPendingLabel('Streaming');
-          const isAudio = activeSkill.id === 'builtin-audiogen';
+          setPendingLabel("Streaming");
+          const isAudio = activeSkill.id === "builtin-audiogen";
           const geminiCfg = settings.providers.gemini;
-          const defaultAudioModel = settings.speed === 'quality' ? (geminiCfg.qualityAudioModel || 'gemini-2.5-pro') : (geminiCfg.fastAudioModel || 'gemini-2.0-flash');
+          const defaultAudioModel =
+            settings.speed === "quality"
+              ? geminiCfg.qualityAudioModel || "gemini-2.5-pro"
+              : geminiCfg.fastAudioModel || "gemini-2.0-flash";
           const targetModel = isAudio ? defaultAudioModel : null;
 
           const inputImages = localAtts
-            .filter((a) => a.kind === 'image' || a.kind === 'screenshot')
+            .filter((a) => a.kind === "image" || a.kind === "screenshot")
             .map((a) => ({ mimeType: a.mimeType, data: a.data }));
           const result = await generateImage({
-            prompt: trimmed || 'Generate media based on the attached references.',
+            prompt:
+              trimmed || "Generate media based on the attached references.",
             settings,
             signal: ctrl.signal,
             inputImages: inputImages.length > 0 ? inputImages : undefined,
@@ -573,16 +669,16 @@ export default function App() {
               attachments: result.attachments,
               pending: false,
               finishedAt: Date.now(),
-            })
+            }),
           );
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
-          const aborted = (e as { name?: string })?.name === 'AbortError';
+          const aborted = (e as { name?: string })?.name === "AbortError";
           setChat((curr) =>
             updateMessage(curr, assistantId, {
               pending: false,
-              content: aborted ? '_(stopped)_' : `> ⚠️ ${message}`,
-            })
+              content: aborted ? "_(stopped)_" : `> ⚠️ ${message}`,
+            }),
           );
           if (!aborted) setError(message);
         } finally {
@@ -593,16 +689,20 @@ export default function App() {
       }
 
       try {
-        let acc = '';
+        let acc = "";
         const buffer = makeStreamBuffer({
           emit: (chunk) => {
             acc += chunk;
-            setChat((curr) => updateMessage(curr, assistantId, { content: acc }));
+            setChat((curr) =>
+              updateMessage(curr, assistantId, { content: acc }),
+            );
           },
         });
         // Auto-compress: trim old messages if context would exceed the limit
         const maxCtx = getMaxContext(settings);
-        let sendMessages = next.messages.filter((m) => m.role !== 'system' && !m.pending);
+        let sendMessages = next.messages.filter(
+          (m) => m.role !== "system" && !m.pending,
+        );
         const sysTokens = approxTokens(sys);
         let totalTokens = sysTokens;
         // Walk messages from newest to oldest, keep as many as fit
@@ -628,15 +728,17 @@ export default function App() {
           onDelta: (d) => buffer.push(d),
           onCitations: (cites) => {
             if (cites.length === 0) return;
-            const lines = cites.map((c) => `- [${c.title || c.uri}](${c.uri})`).join('\n');
+            const lines = cites
+              .map((c) => `- [${c.title || c.uri}](${c.uri})`)
+              .join("\n");
             buffer.push(`\n\n---\n**Sources**\n${lines}`);
           },
           onToolCall: (tc) => {
             toolCallsList.push(tc);
-          }
+          },
         });
         buffer.flush();
-        
+
         if (toolCallsList.length > 0) {
           setChat((curr) =>
             updateMessage(curr, assistantId, {
@@ -644,23 +746,32 @@ export default function App() {
               pending: false,
               toolCalls: toolCallsList,
               finishedAt: Date.now(),
-            })
+            }),
           );
-          
-          setPendingLabel('Running tools...');
+
+          setPendingLabel("Running tools...");
           const geminiCfg = settings.providers.gemini;
-          const embedCfg = geminiCfg.apiKey ? geminiCfg : settings.providers[settings.activeProvider];
-          const toolResults = await Promise.all(toolCallsList.map(async (tc) => {
-             const result = await executeTool(tc.name, tc.args, embedCfg.apiKey, embedCfg.baseUrl, embedCfg.embeddingModel);
-             return {
+          const embedCfg = geminiCfg.apiKey
+            ? geminiCfg
+            : settings.providers[settings.activeProvider];
+          const toolResults = await Promise.all(
+            toolCallsList.map(async (tc) => {
+              const result = await executeTool(tc.name, tc.args, {
+                embedApiKey: embedCfg.apiKey,
+                embedBaseUrl: embedCfg.baseUrl,
+                embedModel: embedCfg.embeddingModel,
+                search: settings.search,
+              });
+              return {
                 id: uid(),
-                role: 'tool' as Role,
+                role: "tool" as Role,
                 content: result,
                 toolCallId: tc.id,
                 createdAt: Date.now(),
-             };
-          }));
-          
+              };
+            }),
+          );
+
           let nextChat: Chat | null = null;
           setChat((curr) => {
             let updated = curr;
@@ -668,13 +779,17 @@ export default function App() {
             nextChat = updated;
             return updated;
           });
-          
+
           setTimeout(() => {
             if (nextChat) {
-              send({ autoResume: true, autoResumeSysPrompt: sys, chatToResume: nextChat });
+              send({
+                autoResume: true,
+                autoResumeSysPrompt: sys,
+                chatToResume: nextChat,
+              });
             }
           }, 100);
-          
+
           return;
         } else {
           setChat((curr) =>
@@ -683,17 +798,17 @@ export default function App() {
               pending: false,
               finishedAt: Date.now(),
               tokensOut: approxTokens(acc),
-            })
+            }),
           );
         }
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        const aborted = (e as { name?: string })?.name === 'AbortError';
+        const aborted = (e as { name?: string })?.name === "AbortError";
         setChat((curr) =>
           updateMessage(curr, assistantId, {
             pending: false,
-            content: aborted ? '_(stopped)_' : `> ⚠️ ${message}`,
-          })
+            content: aborted ? "_(stopped)_" : `> ⚠️ ${message}`,
+          }),
         );
         if (!aborted) setError(message);
       } finally {
@@ -701,7 +816,20 @@ export default function App() {
         setBusy(false);
       }
     },
-    [activeSkill, attachments, buildSystemPrompt, chat, extraTabIds, input, settings, shareEnabled, knowledgeEnabled, knowledgeCount, projects, souls]
+    [
+      activeSkill,
+      attachments,
+      buildSystemPrompt,
+      chat,
+      extraTabIds,
+      input,
+      settings,
+      shareEnabled,
+      knowledgeEnabled,
+      knowledgeCount,
+      projects,
+      souls,
+    ],
   );
 
   const cancel = useCallback(() => {
@@ -714,11 +842,16 @@ export default function App() {
       if (idx < 0) return;
       const dropping = chat.messages.length - (idx + 1);
       if (dropping === 0) return; // nothing after this message
-      if (!window.confirm(`Rewind here? ${dropping} message${dropping !== 1 ? 's' : ''} after this point will be discarded.`)) return;
+      if (
+        !window.confirm(
+          `Rewind here? ${dropping} message${dropping !== 1 ? "s" : ""} after this point will be discarded.`,
+        )
+      )
+        return;
       const rewound = truncateAfter(chat, id, false);
       setChat(rewound);
     },
-    [chat]
+    [chat],
   );
 
   const handleRegenerate = useCallback(
@@ -737,7 +870,7 @@ export default function App() {
         send({ reuseLastUser: true });
       });
     },
-    [chat, send]
+    [chat, send],
   );
 
   const handleEditAndResend = useCallback(
@@ -756,7 +889,7 @@ export default function App() {
         send({ userText: newText, attachments: oldAtts });
       });
     },
-    [chat, editing, send]
+    [chat, editing, send],
   );
 
   const onPickSkill = useCallback((s: Skill | null) => {
@@ -777,39 +910,48 @@ export default function App() {
       if (updated) setActiveSkill(updated);
       setSkillArgsFor(null);
     },
-    [skillArgsFor]
+    [skillArgsFor],
   );
 
   const suggestionSkills = useMemo(
     () => skills.filter((s) => SUGGESTED_FOLLOWUP_SKILL_IDS.includes(s.id)),
-    [skills]
+    [skills],
   );
 
   const lastAssistantId = useMemo(() => {
     for (let i = chat.messages.length - 1; i >= 0; i--) {
       const m = chat.messages[i];
-      if (m.role === 'assistant' && !m.pending) return m.id;
+      if (m.role === "assistant" && !m.pending) return m.id;
     }
     return null;
   }, [chat.messages]);
 
   const tokensIn = useMemo(() => {
     if (!settings) return 0;
-    const skillTokens = activeSkill ? approxTokens(activeSkill.instructions) : 0;
+    const skillTokens = activeSkill
+      ? approxTokens(activeSkill.instructions)
+      : 0;
     const inputTokens = approxTokens(input);
-    const histTokens = chat.messages.reduce((acc, m) => acc + approxTokens(m.content), 0);
+    const histTokens = chat.messages.reduce(
+      (acc, m) => acc + approxTokens(m.content),
+      0,
+    );
     return skillTokens + inputTokens + histTokens;
   }, [settings, activeSkill, input, chat.messages]);
 
   const costHint = useMemo(() => {
-    if (!settings) return 'free';
+    if (!settings) return "free";
     const cost = PROVIDER_COST[settings.activeProvider];
-    const rate = settings.speed === 'fast' ? cost.fastIn : cost.qualityIn;
+    const rate = settings.speed === "fast" ? cost.fastIn : cost.qualityIn;
     return formatCost((tokensIn / 1_000_000) * rate);
   }, [settings, tokensIn]);
 
   if (!settings) {
-    return <div className="h-full grid place-items-center text-muted text-sm">Loading…</div>;
+    return (
+      <div className="h-full grid place-items-center text-muted text-sm">
+        Loading…
+      </div>
+    );
   }
 
   const hasMessages = chat.messages.length > 0;
@@ -864,7 +1006,7 @@ export default function App() {
                 suggestions={suggestionSkills}
                 onSuggest={(s) => {
                   onPickSkill(s);
-                  setInput('');
+                  setInput("");
                 }}
                 onEdit={(id) => {
                   const msg = chat.messages.find((x) => x.id === id);
@@ -876,9 +1018,10 @@ export default function App() {
                 isLastAssistant={m.id === lastAssistantId}
               />
             ))}
-            {busy && chat.messages[chat.messages.length - 1]?.content === '' && (
-              <TypingIndicator label={pendingLabel} />
-            )}
+            {busy &&
+              chat.messages[chat.messages.length - 1]?.content === "" && (
+                <TypingIndicator label={pendingLabel} />
+              )}
           </div>
         )}
       </div>
@@ -918,7 +1061,9 @@ export default function App() {
         }
         visionCapable={visionCapable}
         webSearch={settings.webSearch}
-        onToggleSearch={() => persistSettings({ ...settings, webSearch: !settings.webSearch })}
+        onToggleSearch={() =>
+          persistSettings({ ...settings, webSearch: !settings.webSearch })
+        }
         searchCapable={searchCapable}
         onMultiTabClick={() => setMultiTabOpen(true)}
         knowledgeEnabled={knowledgeEnabled}
@@ -939,11 +1084,11 @@ export default function App() {
         onClose={() => setDrawerOpen(false)}
         onNewChat={() => {
           setDrawerOpen(false);
-          handleNewChat({ projectId: '' });
+          handleNewChat({ projectId: "" });
         }}
         onNewProject={() => {
           setDrawerOpen(false);
-          setProjectModalTarget('new');
+          setProjectModalTarget("new");
           setProjectModalOpen(true);
         }}
         onOpenProject={(id) => {
@@ -969,7 +1114,7 @@ export default function App() {
 
       <ProjectModal
         open={projectModalOpen}
-        projectId={projectModalTarget === 'new' ? null : projectModalTarget}
+        projectId={projectModalTarget === "new" ? null : projectModalTarget}
         history={history}
         apiKey={embedProviderCfg.apiKey}
         baseUrl={embedProviderCfg.baseUrl}
@@ -1072,7 +1217,7 @@ export default function App() {
 
       <EditMessageModal
         open={!!editing}
-        initial={editing?.content ?? ''}
+        initial={editing?.content ?? ""}
         onClose={() => setEditing(null)}
         onSave={handleEditAndResend}
       />
@@ -1086,14 +1231,15 @@ export default function App() {
           if (stats.chunks > 0) setKnowledgeEnabled(true);
         }}
         apiKey={cfg.apiKey}
-        baseUrl={cfg.id === 'gemini' ? cfg.baseUrl : undefined}
+        baseUrl={cfg.id === "gemini" ? cfg.baseUrl : undefined}
       />
 
       {/* Footer — context ring + provider + cost */}
       <div className="px-3 py-1 text-[10px] text-soft border-t border-border/60 flex items-center justify-between gap-2">
         <ContextRing used={tokensIn} max={getMaxContext(settings)} />
         <span className="truncate opacity-70">
-          {cfg.id} · {settings.speed === 'fast' ? cfg.fastModel : cfg.qualityModel}
+          {cfg.id} ·{" "}
+          {settings.speed === "fast" ? cfg.fastModel : cfg.qualityModel}
         </span>
         <span className="tabular-nums shrink-0">{costHint}</span>
       </div>

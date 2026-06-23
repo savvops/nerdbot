@@ -49,6 +49,23 @@ Provider key pages:
 
 Local providers use local default base URLs and placeholder API key values because their OpenAI-compatible endpoints normally do not require cloud credentials.
 
+## Web Search
+
+Nerdbot has a configurable search router. The public-safe default is Jina Search, with optional SearXNG and DuckDuckGo fallbacks:
+
+1. `jina` — hosted search via `https://s.jina.ai/`.
+2. `searxng` — self-hosted sovereign search via `/search?q=...&format=json`.
+3. `duckduckgo` — HTML fallback.
+
+For a local/SavvOps setup, run SearXNG and switch Settings → Web Search → “Use sovereign mode”:
+
+```bash
+docker run -d --name searxng -p 8080:8080 searxng/searxng
+curl "http://localhost:8080/search?q=latest%20AI%20news&format=json"
+```
+
+Gemini still uses native Google grounding when web search is enabled. Other providers receive search results injected into context, and tool calls like `search_web` use the same router.
+
 ## Permissions
 
 Nerdbot requests Chrome permissions needed for its extension workflows:
