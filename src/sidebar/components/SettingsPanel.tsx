@@ -8,6 +8,7 @@ import {
   Trash2,
   Check,
   Pencil,
+  Bug,
 } from "lucide-react";
 import type {
   ProviderId,
@@ -34,6 +35,7 @@ interface Props {
   ) => Promise<void>;
   onDeleteSoul: (id: string) => Promise<void>;
   onSoulsChange: (souls: Soul[]) => void;
+  onReportBug: () => void;
 }
 
 const PROVIDER_ORDER: ProviderId[] = [
@@ -64,6 +66,7 @@ export default function SettingsPanel({
   onCreateSoul,
   onUpdateSoul,
   onDeleteSoul,
+  onReportBug,
 }: Props) {
   const [showKey, setShowKey] = useState(false);
 
@@ -759,6 +762,23 @@ export default function SettingsPanel({
               ))}
             </div>
           </Field>
+
+          {/* ── Help & Feedback ── */}
+          <div className="border-t border-border pt-4">
+            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">
+              Help & Feedback
+            </div>
+            <button
+              onClick={onReportBug}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border bg-bg text-muted hover:text-ink hover:border-accent/50 text-[12.5px] transition-colors"
+            >
+              <Bug size={14} className="text-accent" />
+              <span className="flex-1 text-left">Report a bug</span>
+            </button>
+            <div className="text-[10.5px] text-soft mt-1.5">
+              Opens your email client to send a report to the Nerdbot team.
+            </div>
+          </div>
         </div>
 
         <div className="px-4 py-3 border-t border-border bg-bg text-[11px] text-muted">

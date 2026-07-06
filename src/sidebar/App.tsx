@@ -15,6 +15,7 @@ import EditMessageModal from "./components/EditMessageModal";
 import KnowledgePanel from "./components/KnowledgePanel";
 import ContextRing from "./components/ContextRing";
 import ProjectModal from "./components/ProjectModal";
+import BugReportModal from "./components/BugReportModal";
 
 import { executeTool } from "../services/tools";
 import {
@@ -161,6 +162,7 @@ export default function App() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const [addSkillOpen, setAddSkillOpen] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [skillArgsFor, setSkillArgsFor] = useState<Skill | null>(null);
@@ -1159,6 +1161,16 @@ export default function App() {
           await deleteSoul(id);
           setSouls(await loadSouls());
         }}
+        onReportBug={() => {
+          setSettingsOpen(false);
+          setBugReportOpen(true);
+        }}
+      />
+
+      <BugReportModal
+        open={bugReportOpen}
+        settings={settings}
+        onClose={() => setBugReportOpen(false)}
       />
 
       <AddSkillModal
