@@ -28,7 +28,8 @@
   "scripts": {
     "dev": "vite build --watch --mode development",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "package": "npm run build && cd dist && zip -r ../nerdbot-v$npm_package_version.zip . -x '*.map'"
   },
   "dependencies": {
     "@orama/orama": "^3.1.18",
