@@ -6,6 +6,7 @@ import {
   type SearchResult,
 } from "./searchProviders";
 import type { SearchSettings } from "./types";
+import { hasAllUrls } from "./permissions";
 
 /**
  * Universal web scraper service.
@@ -161,7 +162,18 @@ export async function searchWeb(
 ): Promise<string | null> {
   try {
     const normalized = normalizeSearchSettings(settings);
-    for (const provider of resolveSearchProviderOrder(normalized)) {
+    // duckduckgo/searxng issue cross-origin requests that need the "<all_urls>"
+    // host grant for CORS; Jina is CORS-safe. Skip the host-only providers when
+    // the grant is absent, falling through to Jina.
+    const allowHostFetch = await hasAllUrls();
+    let providerOrder = resolveSearchProviderOrder(normalized);
+    if (!allowHostFetch) {
+      providerOrder = providerOrder.filter(
+        (p) => p !== "duckduckgo" && p !== "searxng",
+      );
+      if (!providerOrder.includes("jina")) providerOrder.push("jina");
+    }
+    for (const provider of providerOrder) {
       try {
         if (provider === "jina") {
           const jina = await searchJina(query);
@@ -242,7 +254,18 @@ export async function searchAndExtractUrls(
 ): Promise<string[]> {
   try {
     const normalized = normalizeSearchSettings(settings);
-    for (const provider of resolveSearchProviderOrder(normalized)) {
+    // duckduckgo/searxng issue cross-origin requests that need the "<all_urls>"
+    // host grant for CORS; Jina is CORS-safe. Skip the host-only providers when
+    // the grant is absent, falling through to Jina.
+    const allowHostFetch = await hasAllUrls();
+    let providerOrder = resolveSearchProviderOrder(normalized);
+    if (!allowHostFetch) {
+      providerOrder = providerOrder.filter(
+        (p) => p !== "duckduckgo" && p !== "searxng",
+      );
+      if (!providerOrder.includes("jina")) providerOrder.push("jina");
+    }
+    for (const provider of providerOrder) {
       try {
         if (provider === "jina") {
           const text = await searchJina(query);

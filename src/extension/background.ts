@@ -1,5 +1,10 @@
 /// <reference types="chrome" />
 
+async function ensureContentScript(tabId: number): Promise<boolean> {
+  try { const r = await chrome.tabs.sendMessage(tabId, { type: 'NERDBOT_PING' }); if (r?.ok) return true; } catch {}
+  try { await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }); return true; } catch { return false; }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel
     ?.setPanelBehavior?.({ openPanelOnActionClick: true })
@@ -21,6 +26,7 @@ chrome.commands?.onCommand?.addListener(async (command) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
       try {
+        await ensureContentScript(tab.id);
         await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_QUICK_CHAT' });
       } catch {
         /* content script not loaded on this page */
@@ -65,6 +71,7 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
       if (message.type === 'GET_TAB_TEXT') {
         const tabId = message.payload.tabId;
         try {
+          await ensureContentScript(tabId);
           const reply = await chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_TEXT' });
           const tab = await chrome.tabs.get(tabId);
           sendResponse({
@@ -83,6 +90,7 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
           return;
         }
         try {
+          await ensureContentScript(tab.id);
           const reply = await chrome.tabs.sendMessage(tab.id, message);
           sendResponse({ ok: true, data: { ...reply, tabId: tab.id, url: tab.url, title: tab.title } });
         } catch {

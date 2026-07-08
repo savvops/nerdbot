@@ -16,6 +16,7 @@ import KnowledgePanel from "./components/KnowledgePanel";
 import ContextRing from "./components/ContextRing";
 import ProjectModal from "./components/ProjectModal";
 import BugReportModal from "./components/BugReportModal";
+import OnboardingModal from "./components/OnboardingModal";
 
 import { executeTool } from "../services/tools";
 import {
@@ -51,6 +52,7 @@ import {
   getPageText,
   getTabText,
 } from "../services/pageContext";
+import { hasAllUrls, requestAllUrls } from "../services/permissions";
 import {
   addSkill,
   applySkillArgs,
@@ -163,6 +165,7 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [addSkillOpen, setAddSkillOpen] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [skillArgsFor, setSkillArgsFor] = useState<Skill | null>(null);
@@ -172,6 +175,8 @@ export default function App() {
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Ensures the share-permission prompt only fires once per session.
+  const askedShareRef = useRef(false);
 
   // Bootstrap
   useEffect(() => {
@@ -185,6 +190,8 @@ export default function App() {
         loadSouls(),
       ]);
       setSettings(s);
+      const active = s.providers[s.activeProvider];
+      if (!s.onboardedAt && !active.apiKey.trim()) setOnboardingOpen(true);
       setChat(c);
       setHistory(h);
       setPinned(p);
@@ -523,6 +530,20 @@ export default function App() {
           if (cur) {
             includedPages.push(cur);
             currentTabId = cur.tabId;
+          }
+        }
+        // Reading extra tabs needs "<all_urls>"; prompt once per session from
+        // this send-click gesture. getTabText degrades gracefully if declined.
+        if (
+          extraTabIds.length > 0 &&
+          !askedShareRef.current &&
+          !(await hasAllUrls())
+        ) {
+          askedShareRef.current = true;
+          try {
+            await requestAllUrls();
+          } catch {
+            /* ignore — proceed regardless of grant */
           }
         }
         for (const tabId of extraTabIds) {
@@ -997,7 +1018,11 @@ export default function App() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {!hasMessages ? (
-          <HeroEmpty onSuggest={(t) => setInput(t)} />
+          <HeroEmpty
+            onSuggest={(t) => setInput(t)}
+            needsSetup={!settings.providers[settings.activeProvider].apiKey.trim()}
+            onSetup={() => setOnboardingOpen(true)}
+          />
         ) : (
           <div className="px-3 pt-4 pb-6 space-y-5">
             {chat.messages.map((m) => (
@@ -1047,7 +1072,20 @@ export default function App() {
         busy={busy}
         page={page}
         shareEnabled={shareEnabled}
-        onToggleShare={() => setShareEnabled((v) => !v)}
+        onToggleShare={async () => {
+          const next = !shareEnabled;
+          // Turning share ON may need the "<all_urls>" host permission to read
+          // page content. Prompt from this user gesture, but flip the toggle
+          // regardless of grant (reading degrades to title/url without it).
+          if (next && !(await hasAllUrls())) {
+            try {
+              await requestAllUrls();
+            } catch {
+              /* ignore — proceed with the toggle either way */
+            }
+          }
+          setShareEnabled(next);
+        }}
         extraTabCount={extraTabCount}
         speed={settings.speed}
         onSpeedChange={(s) => persistSettings({ ...settings, speed: s })}
@@ -1171,6 +1209,28 @@ export default function App() {
         open={bugReportOpen}
         settings={settings}
         onClose={() => setBugReportOpen(false)}
+      />
+
+      <OnboardingModal
+        open={onboardingOpen}
+        settings={settings}
+        onComplete={(next) => {
+          persistSettings(next);
+          setOnboardingOpen(false);
+        }}
+        onSkip={() => {
+          persistSettings({ ...settings, onboardedAt: Date.now() });
+          setOnboardingOpen(false);
+        }}
+        onOpenSettings={() => {
+          persistSettings({ ...settings, onboardedAt: Date.now() });
+          setOnboardingOpen(false);
+          setSettingsOpen(true);
+        }}
+        onTryPrompt={(t) => {
+          setInput(t);
+          setOnboardingOpen(false);
+        }}
       />
 
       <AddSkillModal

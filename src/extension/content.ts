@@ -1,5 +1,8 @@
 /// <reference types="chrome" />
 
+if (!(window as any).__nerdbotContentLoaded) {
+  (window as any).__nerdbotContentLoaded = true;
+
 const MAX_PAGE_TEXT = 60_000;
 
 function getSelection(): string {
@@ -55,6 +58,10 @@ async function getYouTubeTranscript(): Promise<string | undefined> {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'NERDBOT_PING') {
+    sendResponse({ ok: true });
+    return true;
+  }
   if (message?.type === 'GET_PAGE_CONTEXT') {
     sendResponse({
       url: location.href,
@@ -169,4 +176,5 @@ function mountQuickChat() {
     chrome.storage.local.set({ 'nerdbot.quickQueue.v1': { text, createdAt: Date.now() } });
     close();
   }
+}
 }

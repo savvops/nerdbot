@@ -111,6 +111,8 @@ export interface Settings {
   activeSoulId?: string;
   /** Web search routing configuration. */
   search: SearchSettings;
+  /** Set once the first-run onboarding wizard is completed or skipped. */
+  onboardedAt?: number;
 }
 
 export interface SkillArgument {

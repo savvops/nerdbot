@@ -11,7 +11,7 @@ repo root. The zip contains the extension files at its root (manifest.json at
 the top level), which is what the store expects.
 
 Before every new upload, bump `"version"` in **both** `package.json` and
-`public/manifest.json` — the store rejects uploads that reuse an existing
+`manifest.json` (repo root) — the store rejects uploads that reuse an existing
 version number.
 
 ## 2. Developer account
@@ -28,7 +28,7 @@ version number.
    - Description (the manifest description is a good starting point).
    - Category: Productivity → Tools.
    - At least one 1280×800 (or 640×400) screenshot of the side panel.
-   - 128×128 store icon (use `public/icons/icon128.png`).
+   - 128×128 store icon (use `icons/icon128.png`).
    - Optional small promo tile 440×280.
 
 ## 4. Privacy tab — required disclosures
@@ -40,15 +40,16 @@ justifications. Suggested wording:
 |---|---|
 | `storage` | Persists user settings, chat history, personas, and the local RAG knowledge base on-device. |
 | `activeTab` / `tabs` | Reads the title/URL of open tabs so the user can share a tab's content with the assistant. |
-| `scripting` | Injects the quick-chat overlay and extracts page text when the user explicitly shares a page. |
+| `scripting` | Injects the page reader and quick-chat overlay on demand into the tab the user is acting on (no persistent all-sites content script). |
 | `sidePanel` | The entire UI lives in Chrome's side panel. |
-| Host permission `<all_urls>` | The content script extracts page text/selection/YouTube transcripts on any site the user chooses to share with the assistant. No data is collected in the background. |
+| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, read other tabs, or use a self-hosted/DuckDuckGo search backend. Not requested at install; the extension shows no all-sites warning on install. |
 
 Also on the Privacy tab:
 
 - **Single purpose**: "A browser side-panel AI assistant that answers
   questions, optionally using the content of pages the user shares."
-- **Remote code**: answer **No** — all JS is bundled; the extension calls
+- **Remote code**: answer **No** — all JS is bundled and injected on demand
+  (no persistent all-sites content script); the extension calls
   LLM HTTP APIs (Gemini, OpenAI, OpenRouter, Anthropic, LM Studio, Ollama)
   but does not load or execute remote code.
 - **Data usage**: page content and user prompts are sent to the LLM provider
@@ -61,15 +62,16 @@ Also on the Privacy tab:
 ## 5. Submit
 
 1. **Save draft** → **Submit for review**.
-2. Extensions with `<all_urls>` host permissions get an in-depth review;
-   expect a few days to a couple of weeks for the first version.
+2. Extensions that can request `<all_urls>` (even as an optional permission)
+   get an in-depth review; expect a few days to a couple of weeks for the
+   first version.
 3. You'll get an email on approval or rejection. Rejections cite the exact
    policy; fix, bump the version, re-upload the new zip, and resubmit.
 
 ## Pre-flight checklist
 
 - [ ] `npm run build` passes (type-check + bundle).
-- [ ] Version bumped in `package.json` and `public/manifest.json`.
+- [ ] Version bumped in `package.json` and `manifest.json` (repo root).
 - [ ] Load `dist/` unpacked in Chrome (`chrome://extensions` → Developer
       mode → Load unpacked) and smoke-test: side panel opens, chat streams,
       quick chat (`Ctrl+Shift+L`) works, settings persist.

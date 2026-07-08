@@ -1,7 +1,10 @@
+import { Sparkles } from 'lucide-react';
 import BrandMark from './BrandMark';
 
 interface Props {
   onSuggest: (text: string) => void;
+  needsSetup?: boolean;
+  onSetup?: () => void;
 }
 
 const SUGGESTIONS = [
@@ -11,7 +14,7 @@ const SUGGESTIONS = [
   'Plan a weekend in Lisbon',
 ];
 
-export default function HeroEmpty({ onSuggest }: Props) {
+export default function HeroEmpty({ onSuggest, needsSetup, onSetup }: Props) {
   return (
     <div className="relative flex flex-col items-center justify-center text-center px-6 pt-12 pb-10 nb-hero-glow">
       <BrandMark size={56} className="mb-4 animate-fade-in" />
@@ -25,6 +28,23 @@ export default function HeroEmpty({ onSuggest }: Props) {
         </kbd>{' '}
         to use a skill.
       </p>
+
+      {needsSetup && (
+        <button
+          onClick={onSetup}
+          className="w-full max-w-[360px] mt-6 px-4 py-3 rounded-xl border border-accent/50 bg-accent/10 hover:bg-accent/15 text-left transition-colors"
+        >
+          <div className="flex items-start gap-2.5">
+            <Sparkles size={16} className="text-accent mt-0.5 shrink-0" />
+            <div>
+              <div className="text-sm font-semibold text-ink">Set up your AI provider</div>
+              <div className="text-xs text-muted mt-0.5">
+                Add a free Gemini or OpenRouter key — takes 2 minutes
+              </div>
+            </div>
+          </div>
+        </button>
+      )}
 
       <div className="grid grid-cols-1 gap-2 w-full max-w-[360px] mt-7">
         {SUGGESTIONS.map((s) => (

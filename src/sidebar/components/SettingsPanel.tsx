@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ExternalLink,
   Eye,
@@ -9,6 +9,7 @@ import {
   Check,
   Pencil,
   Bug,
+  RefreshCw,
 } from "lucide-react";
 import type {
   ProviderId,
@@ -19,6 +20,17 @@ import type {
 import { PROVIDER_DOCS, PROVIDER_LABELS } from "../../services/config";
 import { memoryProvider } from "../../services/memoryProvider";
 import { DEFAULT_SOUL_PROMPT } from "../../services/souls";
+import ModelSelect from "./ModelSelect";
+import {
+  getAvailableModels,
+  clearModelCache,
+  type ModelFetchResult,
+} from "../../services/models";
+import {
+  hasAllUrls,
+  requestAllUrls,
+  onPermissionsChanged,
+} from "../../services/permissions";
 
 interface Props {
   open: boolean;
@@ -69,6 +81,79 @@ export default function SettingsPanel({
   onReportBug,
 }: Props) {
   const [showKey, setShowKey] = useState(false);
+
+  const provider = settings.providers[settings.activeProvider];
+
+  // Model list (live-fetched, debounced, cached in services/models.ts)
+  const [modelList, setModelList] = useState<ModelFetchResult | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const forceModelsRef = useRef(false);
+
+  useEffect(() => {
+    // Only fetch while the panel is open — avoids an unsolicited /models call
+    // on every app launch for already-configured users.
+    if (!open) return;
+    const cfg = provider;
+    const isCloud =
+      cfg.id === "gemini" ||
+      cfg.id === "openai" ||
+      cfg.id === "openrouter" ||
+      cfg.id === "anthropic";
+    // Cloud providers need a key before they'll list models — until then fall
+    // back to just the current value + Custom in the picker.
+    if (isCloud && !cfg.apiKey.trim()) {
+      setModelList(null);
+      setModelsLoading(false);
+      return;
+    }
+    const force = forceModelsRef.current;
+    forceModelsRef.current = false;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setModelsLoading(true);
+      try {
+        const res = await getAvailableModels(cfg, { force });
+        if (!cancelled) setModelList(res);
+      } finally {
+        if (!cancelled) setModelsLoading(false);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, provider.id, provider.baseUrl, provider.apiKey, refreshNonce]);
+
+  const refreshModels = () => {
+    clearModelCache();
+    forceModelsRef.current = true;
+    setModelsLoading(true);
+    setRefreshNonce((n) => n + 1);
+  };
+
+  // Host ("<all_urls>") permission state — gates the search backends that
+  // must fetch arbitrary sites (SearXNG / DuckDuckGo).
+  const [hasHostAccess, setHasHostAccess] = useState(false);
+  const [searchHint, setSearchHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    hasAllUrls().then((v) => {
+      if (active) setHasHostAccess(v);
+    });
+    const unsub = onPermissionsChanged(() => {
+      hasAllUrls().then((v) => {
+        if (active) setHasHostAccess(v);
+      });
+    });
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, [open]);
 
   // Memory state
   const [facts, setFacts] = useState("");
@@ -135,7 +220,6 @@ export default function SettingsPanel({
   };
 
   if (!open) return null;
-  const provider = settings.providers[settings.activeProvider];
 
   const updateProvider = (patch: Partial<typeof provider>) => {
     onChange({
@@ -155,6 +239,26 @@ export default function SettingsPanel({
         ...patch,
       },
     });
+  };
+
+  // SearXNG / DuckDuckGo fetch arbitrary sites, so they need "<all_urls>".
+  // This runs from the <select> onChange (a user gesture), so it can prompt.
+  const handleSearchProviderChange = async (next: SearchProviderId) => {
+    if (next === "searxng" || next === "duckduckgo") {
+      const has = await hasAllUrls();
+      if (!has) {
+        const granted = await requestAllUrls();
+        if (granted) setHasHostAccess(true);
+        else {
+          setSearchHint(
+            "Site access is needed for that search backend — keeping the previous provider.",
+          );
+          setTimeout(() => setSearchHint(null), 4000);
+          return; // denied: don't switch
+        }
+      }
+    }
+    updateSearch({ provider: next });
   };
 
   return (
@@ -233,25 +337,64 @@ export default function SettingsPanel({
               onChange={(e) => updateProvider({ baseUrl: e.target.value })}
               className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[13px] outline-none"
             />
+            {(provider.id === "lmstudio" || provider.id === "ollama") && (
+              <div className="text-[10.5px] text-soft mt-1">
+                If requests fail with a CORS error, enable CORS in LM Studio's
+                server settings or set{" "}
+                <code className="text-ink/80">OLLAMA_ORIGINS</code> — or grant
+                site access.
+              </div>
+            )}
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Fast model">
-              <input
-                value={provider.fastModel}
-                onChange={(e) => updateProvider({ fastModel: e.target.value })}
-                className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
-              />
-            </Field>
-            <Field label="Quality model">
-              <input
-                value={provider.qualityModel}
-                onChange={(e) =>
-                  updateProvider({ qualityModel: e.target.value })
-                }
-                className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
-              />
-            </Field>
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Fast model">
+                <ModelSelect
+                  value={provider.fastModel}
+                  models={modelList?.models ?? []}
+                  loading={modelsLoading}
+                  onChange={(id) => updateProvider({ fastModel: id })}
+                />
+              </Field>
+              <Field label="Quality model">
+                <ModelSelect
+                  value={provider.qualityModel}
+                  models={modelList?.models ?? []}
+                  loading={modelsLoading}
+                  onChange={(id) => updateProvider({ qualityModel: id })}
+                />
+              </Field>
+            </div>
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-[10.5px] text-soft">
+                {modelsLoading
+                  ? "Loading models…"
+                  : modelList
+                    ? `${modelList.models.length} models`
+                    : "Models"}
+              </span>
+              <button
+                type="button"
+                onClick={refreshModels}
+                disabled={modelsLoading}
+                className="p-1 -mr-1 text-muted hover:text-ink rounded disabled:opacity-40"
+                title="Refresh model list"
+              >
+                <RefreshCw
+                  size={12}
+                  className={modelsLoading ? "animate-spin" : ""}
+                />
+              </button>
+            </div>
+            {modelList?.source === "fallback" && (
+              <div
+                className="text-[10.5px] text-soft mt-0.5"
+                title={modelList.error}
+              >
+                Couldn't fetch live models — showing known ones
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -414,9 +557,9 @@ export default function SettingsPanel({
                 <select
                   value={settings.search.provider}
                   onChange={(e) =>
-                    updateSearch({
-                      provider: e.target.value as SearchProviderId,
-                    })
+                    handleSearchProviderChange(
+                      e.target.value as SearchProviderId,
+                    )
                   }
                   className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-[13px] outline-none"
                 >
@@ -430,6 +573,19 @@ export default function SettingsPanel({
                   Public-safe default is Jina. Use SearXNG for a sovereign
                   self-hosted search backend.
                 </div>
+                {(settings.search.provider === "searxng" ||
+                  settings.search.provider === "duckduckgo") &&
+                  !hasHostAccess && (
+                    <div className="text-[10.5px] text-soft mt-1">
+                      This backend fetches sites directly and needs site access.
+                      Nerdbot will ask for permission when you switch to it.
+                    </div>
+                  )}
+                {searchHint && (
+                  <div className="text-[10.5px] text-accent mt-1">
+                    {searchHint}
+                  </div>
+                )}
               </Field>
 
               {settings.search.provider === "searxng" ||

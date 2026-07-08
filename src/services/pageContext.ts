@@ -44,7 +44,13 @@ export async function listTabs(): Promise<SharedTab[]> {
   return r ?? [];
 }
 
+async function ensureContentScript(tabId: number): Promise<boolean> {
+  try { const r = await chrome.tabs.sendMessage(tabId, { type: 'NERDBOT_PING' }); if (r?.ok) return true; } catch {}
+  try { await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }); return true; } catch { return false; }
+}
+
 export async function getTabText(tabId: number): Promise<SharedTab | null> {
+  await ensureContentScript(tabId);
   // 1. Try messaging the content script (fastest if it's loaded)
   if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
     try {
