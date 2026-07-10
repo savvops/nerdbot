@@ -5,13 +5,16 @@ import process from 'node:process';
 
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'dist');
-const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
-const version = process.env.npm_package_version || packageJson.version;
-const output = resolve(root, `nerdbot-v${version}.zip`);
 
 if (!existsSync(resolve(dist, 'manifest.json'))) {
   throw new Error('dist/manifest.json is missing; run the production build first.');
 }
+
+// The manifest version is what the Chrome Web Store reads — name the zip
+// after it so the artifact can never claim a different version than it ships.
+const manifest = JSON.parse(readFileSync(resolve(dist, 'manifest.json'), 'utf8'));
+const version = manifest.version;
+const output = resolve(root, `nerdbot-v${version}.zip`);
 
 rmSync(output, { force: true });
 

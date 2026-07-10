@@ -41,6 +41,16 @@ export async function requestAllUrls(): Promise<boolean> {
 }
 
 /**
+ * Ensures the "<all_urls>" grant, prompting if needed. Call from within a
+ * user gesture and BEFORE any slow awaited work, or Chrome's transient
+ * activation expires and the prompt silently fails.
+ */
+export async function ensureAllUrls(): Promise<boolean> {
+  if (await hasAllUrls()) return true;
+  return requestAllUrls();
+}
+
+/**
  * Subscribes to permission grant/revoke events. Fires `cb` whenever any
  * permission is added or removed. Returns an unsubscribe function that removes
  * both listeners.

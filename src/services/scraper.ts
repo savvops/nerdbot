@@ -152,6 +152,26 @@ function decodeHtml(value: string): string {
 }
 
 /**
+ * Resolves the provider order the extension is actually permitted to use.
+ * duckduckgo/searxng issue cross-origin requests that need the "<all_urls>"
+ * host grant for CORS; Jina is CORS-safe. Without the grant the host-only
+ * providers are skipped — but never silently rerouted: if the user's
+ * configured order contains ONLY host-only providers (e.g. a self-hosted
+ * SearXNG), we return [] rather than leak their queries to a third party.
+ */
+async function permittedProviderOrder(
+  normalized: SearchSettings,
+): Promise<ReturnType<typeof resolveSearchProviderOrder>> {
+  const providerOrder = resolveSearchProviderOrder(normalized);
+  if (await hasAllUrls()) return providerOrder;
+  return providerOrder.filter((p) => p !== "duckduckgo" && p !== "searxng");
+}
+
+const SEARCH_PERMISSION_NOTE =
+  "Web search is unavailable: the configured search backend needs the site-access permission. " +
+  "Ask the user to grant site access in Settings (or chrome://extensions → Nerdbot → Site access).";
+
+/**
  * Search the web via the configured search router.
  * Option A default is public-safe Jina, with optional SearXNG and DuckDuckGo fallbacks.
  * Used to give non-Gemini providers access to live web results by injecting them into context.
@@ -162,17 +182,8 @@ export async function searchWeb(
 ): Promise<string | null> {
   try {
     const normalized = normalizeSearchSettings(settings);
-    // duckduckgo/searxng issue cross-origin requests that need the "<all_urls>"
-    // host grant for CORS; Jina is CORS-safe. Skip the host-only providers when
-    // the grant is absent, falling through to Jina.
-    const allowHostFetch = await hasAllUrls();
-    let providerOrder = resolveSearchProviderOrder(normalized);
-    if (!allowHostFetch) {
-      providerOrder = providerOrder.filter(
-        (p) => p !== "duckduckgo" && p !== "searxng",
-      );
-      if (!providerOrder.includes("jina")) providerOrder.push("jina");
-    }
+    const providerOrder = await permittedProviderOrder(normalized);
+    if (providerOrder.length === 0) return SEARCH_PERMISSION_NOTE;
     for (const provider of providerOrder) {
       try {
         if (provider === "jina") {
@@ -254,16 +265,10 @@ export async function searchAndExtractUrls(
 ): Promise<string[]> {
   try {
     const normalized = normalizeSearchSettings(settings);
-    // duckduckgo/searxng issue cross-origin requests that need the "<all_urls>"
-    // host grant for CORS; Jina is CORS-safe. Skip the host-only providers when
-    // the grant is absent, falling through to Jina.
-    const allowHostFetch = await hasAllUrls();
-    let providerOrder = resolveSearchProviderOrder(normalized);
-    if (!allowHostFetch) {
-      providerOrder = providerOrder.filter(
-        (p) => p !== "duckduckgo" && p !== "searxng",
-      );
-      if (!providerOrder.includes("jina")) providerOrder.push("jina");
+    const providerOrder = await permittedProviderOrder(normalized);
+    if (providerOrder.length === 0) {
+      console.warn("searchAndExtractUrls skipped: host permission missing for configured backend");
+      return [];
     }
     for (const provider of providerOrder) {
       try {

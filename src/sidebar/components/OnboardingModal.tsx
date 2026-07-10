@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import BrandMark from "./BrandMark";
+import { SUGGESTIONS as HERO_SUGGESTIONS } from "./HeroEmpty";
 import ModelSelect from "./ModelSelect";
 import { validateApiKey, type ModelInfo } from "../../services/models";
 import { PROVIDER_DOCS, PROVIDER_LABELS } from "../../services/config";
@@ -26,12 +27,8 @@ type Step = "welcome" | "provider" | "key" | "validating" | "models" | "done";
 /** Only these two providers are offered during first-run onboarding. */
 type OnboardProvider = Extract<ProviderId, "gemini" | "openrouter">;
 
-/** First three HeroEmpty suggestions, copied locally to seed the "done" step. */
-const SUGGESTIONS = [
-  "Summarize the page I’m on",
-  "Explain a concept like I’m 12",
-  "Draft a polite reply to this email",
-];
+/** First three HeroEmpty suggestions seed the "done" step. */
+const SUGGESTIONS = HERO_SUGGESTIONS.slice(0, 3).map((s) => s.text);
 
 const INSTRUCTIONS: Record<OnboardProvider, string[]> = {
   gemini: ["Open Google AI Studio", 'Click "Create API key"', "Paste it below"],
@@ -112,11 +109,16 @@ export default function OnboardingModal({
         );
         if (cancelled) return;
         const def = settings.providers[pid];
-        const pick = (want: string) =>
-          models.some((m) => m.id === want) ? want : models[0]?.id ?? want;
+        // When the config default is missing from the live list, prefer a
+        // model whose name suggests the right tier over an arbitrary first
+        // entry (API order is unsorted and can lead with experimental models).
+        const pick = (want: string, hint: RegExp) =>
+          models.some((m) => m.id === want)
+            ? want
+            : (models.find((m) => hint.test(m.id))?.id ?? models[0]?.id ?? want);
         setFetched(models);
-        setFastModel(pick(def.fastModel));
-        setQualityModel(pick(def.qualityModel));
+        setFastModel(pick(def.fastModel, /flash|mini|haiku|lite|small/i));
+        setQualityModel(pick(def.qualityModel, /pro|sonnet|opus|large/i));
         setError(null);
         setStep("models");
       } catch (err) {
@@ -184,7 +186,13 @@ export default function OnboardingModal({
         {step === "welcome" && (
           <div className="p-5 space-y-4">
             <div className="flex flex-col items-center text-center gap-3 py-2">
-              <BrandMark size={48} />
+              <div className="relative">
+                <div
+                  className="absolute inset-0 -m-3 rounded-full bg-accent/20 blur-xl"
+                  aria-hidden="true"
+                />
+                <BrandMark size={52} className="relative" />
+              </div>
               <div>
                 <div className="text-[15px] font-semibold">
                   Your browser, now with a brain.
@@ -399,7 +407,7 @@ export default function OnboardingModal({
                         className="shrink-0 rounded-lg border border-accent/50 px-2.5 py-1.5 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
                       >
                         {permissionBusy
-                          ? "Waitingâ€¦"
+                          ? "Waiting…"
                           : pageAccess === "denied"
                             ? "Try again"
                             : "Allow"}

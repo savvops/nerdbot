@@ -29,6 +29,7 @@ import {
 import {
   hasAllUrls,
   requestAllUrls,
+  ensureAllUrls,
   onPermissionsChanged,
 } from "../../services/permissions";
 
@@ -283,7 +284,16 @@ export default function SettingsPanel({
               {PROVIDER_ORDER.map((id) => (
                 <button
                   key={id}
-                  onClick={() => onChange({ ...settings, activeProvider: id })}
+                  onClick={() => {
+                    onChange({ ...settings, activeProvider: id });
+                    // Local providers fetch http://localhost from the extension
+                    // origin; without the host grant those requests are
+                    // CORS-blocked unless the server sets headers. Ask now,
+                    // while we still have this click's gesture.
+                    if (id === "lmstudio" || id === "ollama") {
+                      void ensureAllUrls();
+                    }
+                  }}
                   className={`px-2.5 py-2 text-[12.5px] rounded-lg border transition-colors text-left ${
                     settings.activeProvider === id
                       ? "bg-accent/15 border-accent/50 text-ink"

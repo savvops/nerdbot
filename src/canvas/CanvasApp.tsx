@@ -1,6 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Code2, LayoutTemplate, X } from 'lucide-react';
 
+// The preview iframe is sandboxed WITHOUT allow-same-origin (previewed code
+// must never reach the extension origin / chrome.storage), which makes
+// localStorage/sessionStorage throw. Shim them with in-memory versions so
+// generated snippets that persist state still run.
+const STORAGE_SHIM = `<script>(function(){
+  var need = false;
+  try { window.localStorage; } catch (e) { need = true; }
+  if (!need) return;
+  var mk = function () {
+    var s = {};
+    return {
+      getItem: function (k) { return k in s ? s[k] : null; },
+      setItem: function (k, v) { s[k] = String(v); },
+      removeItem: function (k) { delete s[k]; },
+      clear: function () { s = {}; },
+      key: function (i) { return Object.keys(s)[i] ?? null; },
+      get length() { return Object.keys(s).length; }
+    };
+  };
+  Object.defineProperty(window, 'localStorage', { value: mk() });
+  Object.defineProperty(window, 'sessionStorage', { value: mk() });
+})();</script>`;
+
 export default function CanvasApp() {
   const [code, setCode] = useState('');
   const [lang, setLang] = useState('html');
@@ -60,8 +83,8 @@ export default function CanvasApp() {
           </div>
         )}
         <div className={`flex flex-col ${split ? 'w-1/2' : 'w-full'} bg-white`}>
-           <iframe 
-             srcDoc={code}
+           <iframe
+             srcDoc={STORAGE_SHIM + code}
              className="w-full h-full border-none"
              sandbox="allow-scripts allow-forms"
            />

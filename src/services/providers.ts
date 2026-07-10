@@ -100,16 +100,17 @@ async function streamGemini(req: StreamRequest): Promise<string> {
     },
   };
 
-  if (webSearch && isSearchCapable(settings)) {
+  // Gemini rejects functionDeclarations alongside its built-in google_search
+  // tool, so the two are mutually exclusive. Custom tools win: they include a
+  // search_web function, so web search still works through the search router,
+  // and replayed functionCall/functionResponse history stays valid. Native
+  // grounding is only used when no tool loop is attached.
+  if (req.onToolCall) {
+    body.tools = [
+      { functionDeclarations: ALL_TOOLS_SCHEMA.map((tool) => tool.function) },
+    ];
+  } else if (webSearch && isSearchCapable(settings)) {
     body.tools = [{ google_search: {} }];
-  }
-  if (req.onToolCall && !(webSearch && isSearchCapable(settings))) {
-    body.tools = body.tools || [];
-    (body.tools as any[]).push({
-      // Gemini 2.5 rejects function declarations when its built-in
-      // google_search tool is present, so custom tools are an alternate mode.
-      functionDeclarations: ALL_TOOLS_SCHEMA.map((tool) => tool.function)
-    });
   }
 
   const res = await fetch(url, {

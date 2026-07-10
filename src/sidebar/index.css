@@ -61,18 +61,6 @@ body {
   color: transparent;
 }
 
-.nb-brand-orb {
-  background: conic-gradient(
-    from 220deg,
-    #8aa4ff 0%,
-    #c089ff 30%,
-    #ff8ad1 55%,
-    #ffd089 80%,
-    #8aa4ff 100%
-  );
-  filter: blur(0.4px);
-}
-
 /* Scrollbars (thin, themed) */
 *::-webkit-scrollbar {
   width: 10px;

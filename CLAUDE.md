@@ -36,7 +36,7 @@ The build produces a multi-entry Chrome MV3 extension via a custom Vite plugin:
 
 `background.ts` is the message hub. It handles `GET_PAGE_CONTEXT`, `GET_PAGE_TEXT`, `CAPTURE_SCREENSHOT`, `LIST_TABS`, `GET_TAB_TEXT`, `PING`, and opens the side panel on action click. Commands `Ctrl+Shift+K` (open) and `Ctrl+Shift+L` (quick chat) are declared in `manifest.json`.
 
-`content.ts` runs on all pages and extracts page text (capped at 60K chars), selection, title, URL, and YouTube transcripts. It responds to `TOGGLE_QUICK_CHAT` messages.
+`content.ts` is NOT declared in `manifest.json` — it is injected on demand via `chrome.scripting.executeScript` (`ensureContentScript`: NERDBOT_PING first, inject on no answer). `<all_urls>` lives in `optional_host_permissions` and is requested from user gestures (send click, settings, onboarding); code paths must degrade gracefully when the grant is absent. Once injected, `content.ts` extracts page text (capped at 60K chars), selection, title, URL, and YouTube transcripts, and responds to `TOGGLE_QUICK_CHAT` messages.
 
 ### Services Layer (`src/services/`)
 

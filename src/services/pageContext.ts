@@ -1,4 +1,5 @@
 import type { PageContext, SharedTab } from './types';
+import { ensureContentScript } from '../extension/ensureContentScript';
 
 const hasChrome = (): boolean =>
   typeof chrome !== 'undefined' && !!chrome.runtime?.sendMessage;
@@ -42,11 +43,6 @@ export async function listTabs(): Promise<SharedTab[]> {
   }
   const r = await send<SharedTab[]>('LIST_TABS');
   return r ?? [];
-}
-
-async function ensureContentScript(tabId: number): Promise<boolean> {
-  try { const r = await chrome.tabs.sendMessage(tabId, { type: 'NERDBOT_PING' }); if (r?.ok) return true; } catch {}
-  try { await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }); return true; } catch { return false; }
 }
 
 export async function getTabText(tabId: number): Promise<SharedTab | null> {

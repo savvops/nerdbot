@@ -112,10 +112,14 @@ export async function loadSettings(): Promise<Settings> {
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
-    providers: {
-      ...DEFAULT_SETTINGS.providers,
-      ...(stored.providers ?? {}),
-    },
+    // Merge each provider entry over its default so blobs persisted by older
+    // schemas (missing apiKey, models, etc.) are backfilled field-by-field.
+    providers: Object.fromEntries(
+      Object.entries(DEFAULT_SETTINGS.providers).map(([id, def]) => [
+        id,
+        { ...def, ...((stored.providers as Record<string, object> | undefined)?.[id] ?? {}) },
+      ]),
+    ) as Settings["providers"],
     search: normalizeSearchSettings(stored.search),
   } as Settings;
 }

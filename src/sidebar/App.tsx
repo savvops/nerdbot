@@ -52,7 +52,7 @@ import {
   getPageText,
   getTabText,
 } from "../services/pageContext";
-import { hasAllUrls, requestAllUrls } from "../services/permissions";
+import { hasAllUrls, requestAllUrls, ensureAllUrls } from "../services/permissions";
 import {
   addSkill,
   applySkillArgs,
@@ -191,7 +191,7 @@ export default function App() {
       ]);
       setSettings(s);
       const active = s.providers[s.activeProvider];
-      if (!s.onboardedAt && !active.apiKey.trim()) setOnboardingOpen(true);
+      if (!s.onboardedAt && !(active?.apiKey ?? "").trim()) setOnboardingOpen(true);
       setChat(c);
       setHistory(h);
       setPinned(p);
@@ -351,6 +351,9 @@ export default function App() {
 
   const handleScreenshot = useCallback(async () => {
     try {
+      // captureVisibleTab needs host access (or activeTab, which lapses when
+      // the user switches tabs) — request from this click's gesture.
+      await ensureAllUrls();
       const att = await captureScreenshotAttachment();
       setAttachments((prev) => [...prev, att]);
     } catch (e) {
@@ -446,6 +449,16 @@ export default function App() {
 
       setError(null);
 
+      // Host access must be requested from this click's gesture BEFORE any
+      // slow awaited work (transient activation expires in ~5s). Covers the
+      // current-tab share, extra tabs, and the auto-screenshot below.
+      if ((shareEnabled || extraTabIds.length > 0) && !askedShareRef.current) {
+        if (!(await hasAllUrls())) {
+          askedShareRef.current = true;
+          await requestAllUrls().catch(() => false);
+        }
+      }
+
       let next = opts.chatToResume || chat;
       let assistantId: string;
       let pdfText = "";
@@ -458,13 +471,14 @@ export default function App() {
             const res = await chrome.runtime.sendMessage({
               type: "CAPTURE_SCREENSHOT",
             });
-            if (res?.dataUrl) {
+            const dataUrl = res?.ok ? res.data : res?.dataUrl;
+            if (typeof dataUrl === "string" && dataUrl.startsWith("data:")) {
               localAtts.push({
                 id: uid(),
                 kind: "screenshot",
                 name: "Auto-captured Context",
                 mimeType: "image/jpeg",
-                data: res.dataUrl.replace(/^data:image\/\w+;base64,/, ""),
+                data: dataUrl.replace(/^data:image\/\w+;base64,/, ""),
                 hidden: true,
               });
             }
@@ -530,20 +544,6 @@ export default function App() {
           if (cur) {
             includedPages.push(cur);
             currentTabId = cur.tabId;
-          }
-        }
-        // Reading extra tabs needs "<all_urls>"; prompt once per session from
-        // this send-click gesture. getTabText degrades gracefully if declined.
-        if (
-          extraTabIds.length > 0 &&
-          !askedShareRef.current &&
-          !(await hasAllUrls())
-        ) {
-          askedShareRef.current = true;
-          try {
-            await requestAllUrls();
-          } catch {
-            /* ignore — proceed regardless of grant */
           }
         }
         for (const tabId of extraTabIds) {
@@ -1020,7 +1020,7 @@ export default function App() {
         {!hasMessages ? (
           <HeroEmpty
             onSuggest={(t) => setInput(t)}
-            needsSetup={!settings.providers[settings.activeProvider].apiKey.trim()}
+            needsSetup={!(settings.providers[settings.activeProvider]?.apiKey ?? "").trim()}
             onSetup={() => setOnboardingOpen(true)}
           />
         ) : (

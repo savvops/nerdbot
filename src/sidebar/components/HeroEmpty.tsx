@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { Sparkles, FileText, Lightbulb, Mail, Map, ArrowUpRight } from 'lucide-react';
 import BrandMark from './BrandMark';
 
 interface Props {
@@ -7,17 +7,20 @@ interface Props {
   onSetup?: () => void;
 }
 
-const SUGGESTIONS = [
-  'Summarize the page I’m on',
-  'Explain a concept like I’m 12',
-  'Draft a polite reply to this email',
-  'Plan a weekend in Lisbon',
+export const SUGGESTIONS = [
+  { icon: FileText, text: 'Summarize the page I’m on' },
+  { icon: Lightbulb, text: 'Explain a concept like I’m 12' },
+  { icon: Mail, text: 'Draft a polite reply to this email' },
+  { icon: Map, text: 'Plan a weekend in Lisbon' },
 ];
 
 export default function HeroEmpty({ onSuggest, needsSetup, onSetup }: Props) {
   return (
     <div className="relative flex flex-col items-center justify-center text-center px-6 pt-12 pb-10 nb-hero-glow">
-      <BrandMark size={56} className="mb-4 animate-fade-in" />
+      <div className="relative mb-5 animate-fade-in">
+        <div className="absolute inset-0 -m-4 rounded-full bg-accent/20 blur-2xl" aria-hidden="true" />
+        <BrandMark size={64} className="relative drop-shadow-lg" />
+      </div>
       <h1 className="text-2xl font-semibold tracking-tight">
         <span className="nb-brand-gradient">Hi, I’m Nerdbot.</span>
       </h1>
@@ -47,13 +50,18 @@ export default function HeroEmpty({ onSuggest, needsSetup, onSetup }: Props) {
       )}
 
       <div className="grid grid-cols-1 gap-2 w-full max-w-[360px] mt-7">
-        {SUGGESTIONS.map((s) => (
+        {SUGGESTIONS.map(({ icon: Icon, text }) => (
           <button
-            key={s}
-            onClick={() => onSuggest(s)}
-            className="text-left text-[13px] text-ink/90 px-3.5 py-2.5 rounded-xl bg-surface hover:bg-elevated border border-border transition-colors"
+            key={text}
+            onClick={() => onSuggest(text)}
+            className="group flex items-center gap-3 text-left text-[13px] text-ink/90 px-3.5 py-2.5 rounded-xl bg-surface hover:bg-elevated border border-border hover:border-accent/40 transition-all hover:-translate-y-px"
           >
-            {s}
+            <Icon size={15} className="shrink-0 text-soft group-hover:text-accent transition-colors" />
+            <span className="flex-1">{text}</span>
+            <ArrowUpRight
+              size={13}
+              className="shrink-0 text-soft opacity-0 group-hover:opacity-100 transition-opacity"
+            />
           </button>
         ))}
       </div>

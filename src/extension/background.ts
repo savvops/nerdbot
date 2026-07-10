@@ -1,9 +1,6 @@
 /// <reference types="chrome" />
 
-async function ensureContentScript(tabId: number): Promise<boolean> {
-  try { const r = await chrome.tabs.sendMessage(tabId, { type: 'NERDBOT_PING' }); if (r?.ok) return true; } catch {}
-  try { await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }); return true; } catch { return false; }
-}
+import { ensureContentScript } from './ensureContentScript';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel
