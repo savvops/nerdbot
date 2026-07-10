@@ -180,7 +180,12 @@ export default function KnowledgePanel({ open, onClose, apiKey, baseUrl }: Props
                 className="group flex items-center gap-3 p-3 rounded-xl bg-surface border border-border hover:bg-elevated transition-colors cursor-pointer"
                 onClick={() => {
                   setActiveFolderId(f.id);
-                  listDocs(f.id).then(setDocs);
+                  listDocs(f.id)
+                    .then(setDocs)
+                    .catch((error) => {
+                      console.debug('Failed to list docs:', error);
+                      setDocs([]);
+                    });
                 }}
               >
                 <span className="text-[18px]">{f.emoji}</span>

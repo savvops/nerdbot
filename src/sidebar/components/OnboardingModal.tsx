@@ -6,6 +6,7 @@ import { validateApiKey, type ModelInfo } from "../../services/models";
 import { PROVIDER_DOCS, PROVIDER_LABELS } from "../../services/config";
 import { withRetry } from "../../utils/retry";
 import type { ProviderId, Settings } from "../../services/types";
+import { hasAllUrls, requestAllUrls } from "../../services/permissions";
 
 interface Props {
   open: boolean;
@@ -70,6 +71,10 @@ export default function OnboardingModal({
   const [fetched, setFetched] = useState<ModelInfo[]>([]);
   const [fastModel, setFastModel] = useState("");
   const [qualityModel, setQualityModel] = useState("");
+  const [pageAccess, setPageAccess] = useState<
+    "unknown" | "granted" | "denied"
+  >("unknown");
+  const [permissionBusy, setPermissionBusy] = useState(false);
 
   // Reset all local state whenever the wizard is (re)opened.
   useEffect(() => {
@@ -82,6 +87,11 @@ export default function OnboardingModal({
       setFetched([]);
       setFastModel("");
       setQualityModel("");
+      setPageAccess("unknown");
+      setPermissionBusy(false);
+      void hasAllUrls().then((granted) => {
+        if (granted) setPageAccess("granted");
+      });
     }
   }, [open]);
 
@@ -145,6 +155,13 @@ export default function OnboardingModal({
   };
 
   const canContinueKey = apiKey.trim().length > 0;
+
+  const requestPageAccess = async () => {
+    setPermissionBusy(true);
+    const granted = await requestAllUrls();
+    setPageAccess(granted ? "granted" : "denied");
+    setPermissionBusy(false);
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-3 bg-black/55 animate-fade-in">
@@ -360,6 +377,42 @@ export default function OnboardingModal({
                 </div>
               </div>
               <div className="space-y-2">
+                <div className="rounded-xl border border-border bg-bg px-3.5 py-3 text-left">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[12.5px] font-medium text-ink">
+                        Page access
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-muted">
+                        Needed for page context, multi-tab sharing, screenshots,
+                        and Quick Chat.
+                      </div>
+                    </div>
+                    {pageAccess === "granted" ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium text-accent">
+                        <Check size={13} /> Allowed
+                      </span>
+                    ) : (
+                      <button
+                        onClick={requestPageAccess}
+                        disabled={permissionBusy}
+                        className="shrink-0 rounded-lg border border-accent/50 px-2.5 py-1.5 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+                      >
+                        {permissionBusy
+                          ? "Waitingâ€¦"
+                          : pageAccess === "denied"
+                            ? "Try again"
+                            : "Allow"}
+                      </button>
+                    )}
+                  </div>
+                  {pageAccess === "denied" && (
+                    <div className="mt-2 text-[10.5px] text-soft">
+                      Not granted. Nerdbot still works, and you can enable page
+                      access later by turning page sharing on.
+                    </div>
+                  )}
+                </div>
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}

@@ -103,10 +103,12 @@ async function streamGemini(req: StreamRequest): Promise<string> {
   if (webSearch && isSearchCapable(settings)) {
     body.tools = [{ google_search: {} }];
   }
-  if (req.onToolCall) {
+  if (req.onToolCall && !(webSearch && isSearchCapable(settings))) {
     body.tools = body.tools || [];
     (body.tools as any[]).push({
-      functionDeclarations: ALL_TOOLS_SCHEMA.map(t => t.function)
+      // Gemini 2.5 rejects function declarations when its built-in
+      // google_search tool is present, so custom tools are an alternate mode.
+      functionDeclarations: ALL_TOOLS_SCHEMA.map((tool) => tool.function)
     });
   }
 

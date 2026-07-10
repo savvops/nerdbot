@@ -18,9 +18,14 @@ export default function MultiTabModal({ open, selected, excludedTabId, onClose, 
   useEffect(() => {
     if (!open) return;
     setPicked(new Set(selected.filter((id) => id !== excludedTabId)));
-    listTabs().then((items) => {
-      setTabs(items.filter((tab) => tab.tabId !== excludedTabId));
-    });
+    listTabs()
+      .then((items) => {
+        setTabs(items.filter((tab) => tab.tabId !== excludedTabId));
+      })
+      .catch((error) => {
+        console.debug('Failed to list tabs:', error);
+        setTabs([]);
+      });
   }, [open, selected, excludedTabId]);
 
   if (!open) return null;

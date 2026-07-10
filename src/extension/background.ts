@@ -112,6 +112,8 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
     } catch (e) {
       sendResponse({ ok: false, error: String(e) });
     }
-  })();
+  })().catch(() => {
+    /* sendResponse can throw if the message channel closes first */
+  });
   return true;
 });

@@ -63,7 +63,7 @@ export default function CanvasApp() {
            <iframe 
              srcDoc={code}
              className="w-full h-full border-none"
-             sandbox="allow-scripts allow-forms allow-same-origin"
+             sandbox="allow-scripts allow-forms"
            />
         </div>
       </div>

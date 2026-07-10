@@ -21,6 +21,7 @@ temp_*
 .DS_Store
 Thumbs.db
 .cache/
+.brave-test-profile/
 
 # Store upload packages
 nerdbot-v*.zip
