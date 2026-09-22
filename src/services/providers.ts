@@ -12,6 +12,7 @@ export interface StreamRequest {
   onDelta: (text: string) => void;
   onCitations?: (citations: Citation[]) => void;
   onToolCall?: (toolCall: any) => void;
+  allowedTools?: string[];
   webSearch?: boolean;
 }
 
@@ -21,6 +22,7 @@ export interface Citation {
 }
 
 export async function streamCompletion(req: StreamRequest): Promise<string> {
+  if (/^~?typesafe\/jev/i.test(activeModel(req.settings))) throw new Error('Jev is a decision model. Use the experimental OpenRouter section in Settings and select a regular model for chat.');
   const provider = activeProvider(req.settings).id;
   if (provider === 'gemini') return streamGemini(req);
   if (provider === 'anthropic') return streamAnthropic(req);
@@ -62,10 +64,10 @@ async function streamGemini(req: StreamRequest): Promise<string> {
           role: 'user',
           parts: [{
             functionResponse: {
-              name: m.toolCalls?.[0]?.name || 'unknown',
+              name: messages.flatMap(message => message.toolCalls ?? []).find(call => call.id === m.toolCallId)?.name || 'unknown',
               response: { result: m.content }
             }
-          }]
+          }, ...attachmentsToGeminiParts(m.attachments)]
         };
       }
       if (m.toolCalls && m.toolCalls.length > 0) {
@@ -105,9 +107,13 @@ async function streamGemini(req: StreamRequest): Promise<string> {
   // search_web function, so web search still works through the search router,
   // and replayed functionCall/functionResponse history stays valid. Native
   // grounding is only used when no tool loop is attached.
-  if (req.onToolCall) {
+  if (req.onToolCall || messages.some(m => m.toolCalls?.length)) {
+    const declarations = req.allowedTools?.length
+      ? ALL_TOOLS_SCHEMA.filter(tool => req.allowedTools!.includes(tool.function.name))
+      : ALL_TOOLS_SCHEMA;
+    if (!req.onToolCall) body.toolConfig = { functionCallingConfig: { mode: 'NONE' } };
     body.tools = [
-      { functionDeclarations: ALL_TOOLS_SCHEMA.map((tool) => tool.function) },
+      { functionDeclarations: declarations.map((tool) => tool.function) },
     ];
   } else if (webSearch && isSearchCapable(settings)) {
     body.tools = [{ google_search: {} }];
@@ -137,7 +143,7 @@ async function streamGemini(req: StreamRequest): Promise<string> {
           if (p.functionCall && req.onToolCall) {
             req.onToolCall({
               ...p.functionCall,
-              id: p.functionCall.name + '_' + Date.now(),
+              id: p.functionCall.id || crypto.randomUUID(),
               _rawPart: p,
             });
           }
@@ -221,7 +227,7 @@ async function streamAnthropic(req: StreamRequest): Promise<string> {
     if (m.role === 'assistant' && !isInLastThree && imageParts.length === 0) {
       return { role: 'assistant' as const, content: m.content };
     }
-    return { role: m.role as 'user' | 'assistant', content };
+    return { role: (m.role === 'tool' ? 'user' : m.role) as 'user' | 'assistant', content };
   });
 
   const body: Record<string, unknown> = {
@@ -286,13 +292,11 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
       ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
       ...messages
         .filter((m) => m.role !== 'system')
-        .map((m) => {
+        .flatMap<Record<string, unknown>>((m) => {
           if (m.role === 'tool') {
-            return {
-              role: 'tool',
-              tool_call_id: m.toolCallId || m.id,
-              content: m.content,
-            };
+            const reply = { role: 'tool', tool_call_id: m.toolCallId || m.id, content: m.content };
+            const images = attachmentsToOpenAIParts(m.attachments);
+            return images.length ? [reply, { role: 'user', content: [{ type: 'text', text: 'Browser screenshot evidence from the preceding tool.' }, ...images] }] : [reply];
           }
           if (m.toolCalls && m.toolCalls.length > 0) {
             return {
@@ -319,7 +323,9 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
   };
 
   if (req.onToolCall) {
-    (body as any).tools = ALL_TOOLS_SCHEMA;
+    (body as any).tools = req.allowedTools?.length
+      ? ALL_TOOLS_SCHEMA.filter(tool => req.allowedTools!.includes(tool.function.name))
+      : ALL_TOOLS_SCHEMA;
   }
 
   const res = await fetch(url, {

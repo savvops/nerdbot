@@ -11,19 +11,44 @@ export const PROVIDER_LABELS: Record<ProviderId, string> = {
   gemini: "Google Gemini",
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  nvidia: "NVIDIA NIM",
   lmstudio: "LM Studio",
   ollama: "Ollama",
   anthropic: "Anthropic",
+};
+
+export const PROVIDER_ACCESS_LABELS: Record<ProviderId, string> = {
+  gemini: "API · free tier available",
+  openai: "Paid API",
+  openrouter: "Free + paid models",
+  nvidia: "Free prototyping · limits apply",
+  lmstudio: "Local",
+  ollama: "Local",
+  anthropic: "Paid API",
+};
+
+export const PROVIDER_RECOMMENDATIONS: Record<ProviderId, string> = {
+  gemini: "Start with a current Flash model for speed.",
+  openai: "Use a mini model for fast mode and a larger model for quality.",
+  openrouter: "openrouter/free routes across currently available free models; availability and limits can change.",
+  nvidia: "Hosted NVIDIA models for prototyping. Account limits and model access vary; check NVIDIA for production terms. Jev is available only through the separate OpenRouter experiment.",
+  lmstudio: "Use a loaded 7B–8B model for fast mode when your hardware is limited.",
+  ollama: "Use a 3B–8B model for fast mode; choose a larger installed model for quality.",
+  anthropic: "Use Haiku for fast mode and Sonnet for quality.",
 };
 
 export const PROVIDER_DOCS: Record<ProviderId, string> = {
   gemini: "https://aistudio.google.com/apikey",
   openai: "https://platform.openai.com/api-keys",
   openrouter: "https://openrouter.ai/keys",
+  nvidia: "https://build.nvidia.com/settings/api-keys",
   lmstudio: "https://lmstudio.ai",
   ollama: "https://ollama.com",
   anthropic: "https://console.anthropic.com/settings/keys",
 };
+
+/** OpenRouter's zero-cost router, which selects an available free model per request. */
+export const OPENROUTER_FREE_MODEL = "openrouter/free";
 
 /** Rough $/1M tokens — used purely for the in-composer cost hint. */
 export const PROVIDER_COST: Record<
@@ -33,12 +58,21 @@ export const PROVIDER_COST: Record<
   gemini: { fastIn: 0.075, fastOut: 0.3, qualityIn: 1.25, qualityOut: 5 },
   openai: { fastIn: 0.15, fastOut: 0.6, qualityIn: 2.5, qualityOut: 10 },
   openrouter: { fastIn: 0.1, fastOut: 0.4, qualityIn: 3, qualityOut: 15 },
+  nvidia: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
   lmstudio: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
   ollama: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
   anthropic: { fastIn: 0.8, fastOut: 4, qualityIn: 3, qualityOut: 15 },
 };
 
 const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
+  nvidia: {
+    id: "nvidia",
+    apiKey: "",
+    baseUrl: "https://integrate.api.nvidia.com/v1",
+    fastModel: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    qualityModel: "nvidia/nemotron-3-super-120b-a12b",
+    visionEnabled: false,
+  },
   gemini: {
     id: "gemini",
     apiKey: "",
@@ -66,8 +100,8 @@ const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
     id: "openrouter",
     apiKey: "",
     baseUrl: "https://openrouter.ai/api/v1",
-    fastModel: "google/gemini-2.0-flash-001",
-    qualityModel: "anthropic/claude-3.7-sonnet",
+    fastModel: OPENROUTER_FREE_MODEL,
+    qualityModel: OPENROUTER_FREE_MODEL,
   },
   lmstudio: {
     id: "lmstudio",
@@ -93,6 +127,7 @@ const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
 });
 
 export const DEFAULT_SETTINGS: Settings = {
+  experimentalJev: false,
   activeProvider: "gemini",
   speed: "fast",
   temperature: 0.7,
@@ -137,6 +172,14 @@ export function activeProvider(settings: Settings): ProviderConfig {
   return settings.providers[settings.activeProvider];
 }
 
+/** True when the selected model is explicitly zero-cost. */
+export function isFreeModel(providerId: ProviderId, model: string): boolean {
+  if (providerId === "lmstudio" || providerId === "ollama") return true;
+  if (providerId !== "openrouter") return false;
+  const id = model.trim().toLowerCase();
+  return id === OPENROUTER_FREE_MODEL || id.endsWith(":free");
+}
+
 export function isVisionCapable(settings: Settings): boolean {
   const p = settings.activeProvider;
   if (
@@ -162,6 +205,7 @@ export function hasNativeSearch(settings: Settings): boolean {
 
 /** Known context window sizes (tokens) by provider. Conservative defaults. */
 export const CONTEXT_WINDOW: Record<ProviderId, number> = {
+  nvidia: 32_000,
   gemini: 1_000_000,
   openai: 128_000,
   openrouter: 128_000,

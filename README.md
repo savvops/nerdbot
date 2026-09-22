@@ -4,6 +4,7 @@ Nerdbot is a Chrome Manifest V3 side-panel AI assistant. It runs in the browser,
 
 ## Features
 
+- Free-by-default chat through OpenRouter's Free Models Router (one-click account connection; no pasted API key or Nerdbot subscription).
 - Multi-provider streaming chat with fast and quality model modes.
 - Side-panel Chrome extension UI with chat history, message editing, and pinned messages.
 - Page context sharing for the active tab, selected text, screenshots, and multi-tab context.
@@ -11,6 +12,12 @@ Nerdbot is a Chrome Manifest V3 side-panel AI assistant. It runs in the browser,
 - Local RAG knowledge base powered by Orama.
 - Voice input/output, image generation helpers, and a sandboxed HTML/CSS/JS canvas preview.
 - Dark, light, and system themes.
+
+## Install From Chrome Web Store
+
+Install Nerdbot from its public listing:
+
+https://chromewebstore.google.com/detail/nerdbot/oegoeflmcbahliaahlameajidnhlpiog
 
 ## Install From Source
 
@@ -38,6 +45,8 @@ The dev command watches source files and rebuilds `dist/`. After changes, refres
 
 Open Nerdbot settings from the side panel and choose a provider. API keys are entered by the user and stored in `chrome.storage.local` on the local browser profile.
 
+For a zero-cost start, choose **Continue with OpenRouter** during onboarding. Sign in or create an account in the authorization window; Nerdbot receives a user-controlled key through OAuth PKCE, so the user never creates, copies, or pastes one. Nerdbot then selects `openrouter/free` for both chat modes. Free models have lower rate limits and variable availability, and selecting a paid model can use OpenRouter credits.
+
 Provider key pages:
 
 - Gemini: https://aistudio.google.com/apikey
@@ -47,7 +56,9 @@ Provider key pages:
 - LM Studio: https://lmstudio.ai
 - Ollama: https://ollama.com
 
-Local providers use local default base URLs and placeholder API key values because their OpenAI-compatible endpoints normally do not require cloud credentials.
+Local providers use local default base URLs and placeholder API key values because their OpenAI-compatible endpoints normally do not require cloud credentials. Click **Check for local AI** during onboarding—or **Detect Ollama or LM Studio** in Settings—to grant access only to the default localhost endpoints and run a health check. Nerdbot does not scan automatically, execute local CLIs, or read CLI credentials. See [Local providers and optional CLI bridges](docs/local-providers-and-cli-bridges.md).
+
+Provider labels distinguish local, free-tier-capable, and paid API options. Free OpenRouter models can change or become rate-limited; Nerdbot never promises permanent availability.
 
 ## Web Search
 

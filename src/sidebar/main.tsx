@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+import CloudApp from './CloudApp';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 import { loadSettings } from '../services/config';
@@ -25,10 +25,14 @@ async function bootstrap() {
   createRoot(node).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <App />
+        <CloudApp />
       </ErrorBoundary>
     </React.StrictMode>
   );
 }
 
-bootstrap();
+void bootstrap().catch((error: unknown) => {
+  const status = document.getElementById('startup-status');
+  if (status) status.textContent = `Nerdbot could not open your settings: ${error instanceof Error ? error.message : 'startup failed'}. Tap Reload Nerdbot to retry.`;
+  console.error('Nerdbot startup failed:', error);
+});

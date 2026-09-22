@@ -58,6 +58,7 @@ export type ProviderId =
   | "gemini"
   | "openai"
   | "openrouter"
+  | "nvidia"
   | "lmstudio"
   | "ollama"
   | "anthropic";
@@ -95,6 +96,8 @@ export interface ProviderConfig {
 }
 
 export interface Settings {
+  /** Opt-in OpenRouter decision experiment. Never grants action permissions. */
+  experimentalJev?: boolean;
   activeProvider: ProviderId;
   speed: SpeedMode;
   temperature: number;

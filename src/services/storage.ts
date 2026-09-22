@@ -1,4 +1,11 @@
 const memoryStore = new Map<string, unknown>();
+export const STORAGE_CHANGE_EVENT = 'nerdbot-storage-change';
+
+function announce(key: string): void {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(STORAGE_CHANGE_EVENT, { detail: { key } }));
+  }
+}
 
 const hasChromeStorage = (): boolean =>
   typeof chrome !== 'undefined' && !!chrome.storage?.local;
@@ -23,9 +30,11 @@ export async function get<T>(key: string, fallback: T): Promise<T> {
 
 export async function set<T>(key: string, value: T): Promise<void> {
   if (hasChromeStorage()) {
-    return new Promise<void>((resolve) => {
+    await new Promise<void>((resolve) => {
       chrome.storage.local.set({ [key]: value }, () => resolve());
     });
+    announce(key);
+    return;
   }
   memoryStore.set(key, value);
   try {
@@ -33,13 +42,16 @@ export async function set<T>(key: string, value: T): Promise<void> {
   } catch {
     /* no-op */
   }
+  announce(key);
 }
 
 export async function remove(key: string): Promise<void> {
   if (hasChromeStorage()) {
-    return new Promise<void>((resolve) => {
+    await new Promise<void>((resolve) => {
       chrome.storage.local.remove([key], () => resolve());
     });
+    announce(key);
+    return;
   }
   memoryStore.delete(key);
   try {
@@ -47,6 +59,27 @@ export async function remove(key: string): Promise<void> {
   } catch {
     /* no-op */
   }
+  announce(key);
+}
+
+export function onStorageChange(key: string, listener: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const localListener = (event: Event) => {
+    if ((event as CustomEvent<{ key?: string }>).detail?.key === key) listener();
+  };
+  window.addEventListener(STORAGE_CHANGE_EVENT, localListener);
+  const chromeListener = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+    if (area === 'local' && changes[key]) listener();
+  };
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.addListener(chromeListener);
+  }
+  return () => {
+    window.removeEventListener(STORAGE_CHANGE_EVENT, localListener);
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.removeListener(chromeListener);
+    }
+  };
 }
 
 export const uid = (): string =>

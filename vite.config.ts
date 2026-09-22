@@ -26,6 +26,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidebar: resolve(__dirname, 'sidebar.html'),
+        mobile: resolve(__dirname, 'mobile.html'),
         canvas: resolve(__dirname, 'canvas.html'),
         background: resolve(__dirname, 'src/extension/background.ts'),
         content: resolve(__dirname, 'src/extension/content.ts'),

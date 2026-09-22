@@ -5,7 +5,14 @@ const hasChrome = (): boolean =>
   typeof chrome !== 'undefined' && !!chrome.runtime?.sendMessage;
 
 async function send<T>(type: string, payload?: unknown): Promise<T | null> {
-  if (!hasChrome()) return null;
+  if (!hasChrome()) {
+    if (type !== 'GET_PAGE_CONTEXT' && type !== 'GET_PAGE_TEXT') return null;
+    try {
+      const res = await fetch('/api/mobile-context');
+      const reply = await res.json();
+      return reply.ok ? reply.data as T : null;
+    } catch { return null; }
+  }
   return new Promise<T | null>((resolve) => {
     try {
       chrome.runtime.sendMessage({ type, payload }, (res) => {

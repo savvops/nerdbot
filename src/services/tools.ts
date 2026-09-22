@@ -6,8 +6,10 @@ import {
 } from "./scraper";
 import { queryKnowledge } from "./rag";
 import type { SearchSettings } from "./types";
+import { BROWSER_TOOLS, executeBrowserTool } from './browserControl';
 
 export const ALL_TOOLS_SCHEMA = [
+  ...BROWSER_TOOLS,
   {
     type: "function",
     function: {
@@ -81,6 +83,7 @@ export const ALL_TOOLS_SCHEMA = [
 ];
 
 export interface ToolExecutionOptions {
+  signal?: AbortSignal;
   embedApiKey?: string;
   embedBaseUrl?: string;
   embedModel?: string;
@@ -93,6 +96,8 @@ export async function executeTool(
   options: ToolExecutionOptions = {},
 ): Promise<string> {
   try {
+    if (options.signal?.aborted) return 'Error: stopped by user.';
+    if (name.startsWith('browser_')) return JSON.stringify(await executeBrowserTool(name, args, options.signal));
     switch (name) {
       case "search_web":
         if (!args.query) return "Error: query is required.";
@@ -102,7 +107,7 @@ export async function executeTool(
       case "fetch_url":
         if (!args.url) return "Error: url is required.";
         const urlRes = await fetchUrlContent(args.url);
-        return urlRes || "Failed to fetch or empty content.";
+        return urlRes || "Public fetch returned no readable content. This does not prove the page is empty. For a signed-in or JavaScript-rendered page, use browser_observe on the bound tab. If that also fails, explain the limitation using evidence already collected.";
 
       case "search_knowledge_base":
         if (!args.query) return "Error: query is required.";

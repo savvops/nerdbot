@@ -17,20 +17,34 @@ import type {
   Settings,
   Soul,
 } from "../../services/types";
-import { PROVIDER_DOCS, PROVIDER_LABELS } from "../../services/config";
+import {
+  PROVIDER_ACCESS_LABELS,
+  PROVIDER_DOCS,
+  PROVIDER_LABELS,
+  PROVIDER_RECOMMENDATIONS,
+} from "../../services/config";
 import { memoryProvider } from "../../services/memoryProvider";
 import { DEFAULT_SOUL_PROMPT } from "../../services/souls";
 import ModelSelect from "./ModelSelect";
+import JevExperiment from "./JevExperiment";
 import {
   getAvailableModels,
   clearModelCache,
+  FALLBACK_MODEL_CATALOGS,
+  validateApiKey,
   type ModelFetchResult,
 } from "../../services/models";
 import {
+  detectLocalProviders,
+  preferredLocalModels,
+  type LocalProviderProbe,
+} from "../../services/localProviders";
+import {
   hasAllUrls,
   requestAllUrls,
-  ensureAllUrls,
+  ensureLocalAiAccess,
   onPermissionsChanged,
+  requestOriginAccess,
 } from "../../services/permissions";
 
 interface Props {
@@ -55,6 +69,7 @@ const PROVIDER_ORDER: ProviderId[] = [
   "gemini",
   "openai",
   "openrouter",
+  "nvidia",
   "anthropic",
   "lmstudio",
   "ollama",
@@ -82,6 +97,12 @@ export default function SettingsPanel({
   onReportBug,
 }: Props) {
   const [showKey, setShowKey] = useState(false);
+  const [providerHealth, setProviderHealth] = useState<
+    "idle" | "checking" | "ready" | "error"
+  >("idle");
+  const [providerHealthMessage, setProviderHealthMessage] = useState("");
+  const [localScanBusy, setLocalScanBusy] = useState(false);
+  const [localScanResults, setLocalScanResults] = useState<LocalProviderProbe[]>([]);
 
   const provider = settings.providers[settings.activeProvider];
 
@@ -100,11 +121,18 @@ export default function SettingsPanel({
       cfg.id === "gemini" ||
       cfg.id === "openai" ||
       cfg.id === "openrouter" ||
+      cfg.id === "nvidia" ||
       cfg.id === "anthropic";
     // Cloud providers need a key before they'll list models — until then fall
-    // back to just the current value + Custom in the picker.
+    // back to known modality-specific choices in each picker.
     if (isCloud && !cfg.apiKey.trim()) {
-      setModelList(null);
+      const fallback = FALLBACK_MODEL_CATALOGS[cfg.id];
+      setModelList({
+        models: fallback.chat,
+        imageModels: fallback.image,
+        audioModels: fallback.audio,
+        source: "fallback",
+      });
       setModelsLoading(false);
       return;
     }
@@ -132,6 +160,66 @@ export default function SettingsPanel({
     forceModelsRef.current = true;
     setModelsLoading(true);
     setRefreshNonce((n) => n + 1);
+  };
+
+  useEffect(() => {
+    setProviderHealth("idle");
+    setProviderHealthMessage("");
+  }, [provider.id, provider.baseUrl, provider.apiKey]);
+
+  const checkProviderHealth = async () => {
+    setProviderHealth("checking");
+    setProviderHealthMessage("Checking connection…");
+    if ((provider.id === "lmstudio" || provider.id === "ollama") && !(await ensureLocalAiAccess())) {
+      setProviderHealth("error");
+      setProviderHealthMessage("Localhost access was not granted.");
+      return;
+    }
+    if (!["lmstudio", "ollama"].includes(provider.id) && !provider.apiKey.trim()) {
+      setProviderHealth("error");
+      setProviderHealthMessage("Add or connect an API key first.");
+      return;
+    }
+    try {
+      if (!await requestOriginAccess(provider.baseUrl)) throw new Error('Provider access was not granted.');
+      const models = await validateApiKey(provider);
+      setProviderHealth("ready");
+      setProviderHealthMessage(`Ready · ${models.length} model${models.length === 1 ? "" : "s"} available`);
+      refreshModels();
+    } catch (error) {
+      setProviderHealth("error");
+      setProviderHealthMessage(error instanceof Error ? error.message : "Connection check failed");
+    }
+  };
+
+  const scanLocalProviders = async () => {
+    setLocalScanBusy(true);
+    setLocalScanResults([]);
+    const { permissionGranted, results } = await detectLocalProviders(settings);
+    setLocalScanBusy(false);
+    if (!permissionGranted) {
+      setProviderHealth("error");
+      setProviderHealthMessage("Localhost access was not granted.");
+      return;
+    }
+    setLocalScanResults(results);
+    const found = results.find((result) => result.reachable && result.models.length > 0);
+    if (!found) return;
+    const recommended = preferredLocalModels(found);
+    onChange({
+      ...settings,
+      activeProvider: found.id,
+      providers: {
+        ...settings.providers,
+        [found.id]: {
+          ...settings.providers[found.id],
+          fastModel: recommended.fastModel || settings.providers[found.id].fastModel,
+          qualityModel: recommended.qualityModel || settings.providers[found.id].qualityModel,
+        },
+      },
+    });
+    setProviderHealth("ready");
+    setProviderHealthMessage(`${PROVIDER_LABELS[found.id]} detected and selected.`);
   };
 
   // Host ("<all_urls>") permission state — gates the search backends that
@@ -291,7 +379,7 @@ export default function SettingsPanel({
                     // CORS-blocked unless the server sets headers. Ask now,
                     // while we still have this click's gesture.
                     if (id === "lmstudio" || id === "ollama") {
-                      void ensureAllUrls();
+                      void ensureLocalAiAccess();
                     }
                   }}
                   className={`px-2.5 py-2 text-[12.5px] rounded-lg border transition-colors text-left ${
@@ -300,11 +388,56 @@ export default function SettingsPanel({
                       : "bg-bg border-border text-muted hover:text-ink"
                   }`}
                 >
-                  {PROVIDER_LABELS[id]}
+                  <span className="block">{PROVIDER_LABELS[id]}</span>
+                  <span className="mt-0.5 block text-[9.5px] text-soft">
+                    {PROVIDER_ACCESS_LABELS[id]}
+                  </span>
                 </button>
               ))}
             </div>
           </Field>
+
+          <div className="rounded-xl border border-border bg-bg p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[12.5px] font-medium text-ink">Provider health</div>
+                <div className={`mt-0.5 text-[10.5px] ${providerHealth === "ready" ? "text-accent" : "text-soft"}`}>
+                  {providerHealthMessage || (provider.id === 'nvidia' ? 'Checks model access with a one-token test request.' : "Run a check before relying on this provider.")}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={checkProviderHealth}
+                disabled={providerHealth === "checking"}
+                className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-ink hover:bg-elevated disabled:opacity-50"
+              >
+                {providerHealth === "checking" ? "Checking…" : "Check connection"}
+              </button>
+            </div>
+            <div className="mt-3 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={scanLocalProviders}
+                disabled={localScanBusy}
+                className="text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
+              >
+                {localScanBusy ? "Checking localhost…" : "Detect Ollama or LM Studio"}
+              </button>
+              <div className="mt-1 text-[10px] leading-relaxed text-soft">
+                Runs only when clicked and checks the documented default localhost endpoints.
+              </div>
+              {localScanResults.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {localScanResults.map((result) => (
+                    <div key={result.id} className="flex items-center justify-between gap-3 text-[10.5px]">
+                      <span className="text-ink">{PROVIDER_LABELS[result.id]}</span>
+                      <span className={result.reachable ? "text-accent" : "text-soft"}>{result.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           <Field
             label="API key"
@@ -357,6 +490,10 @@ export default function SettingsPanel({
             )}
           </Field>
 
+          {provider.apiKey === 'managed-by-pc' && <p className="text-xs text-muted">Using this provider's key from your PC extension. The key stays on the PC. Replace this value to use a separate mobile key.</p>}
+
+          <JevExperiment settings={settings} onChange={onChange} />
+
           <div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Fast model">
@@ -381,7 +518,7 @@ export default function SettingsPanel({
                 {modelsLoading
                   ? "Loading models…"
                   : modelList
-                    ? `${modelList.models.length} models`
+                    ? `${modelList.models.length} chat · ${modelList.imageModels.length} image · ${modelList.audioModels.length} audio`
                     : "Models"}
               </span>
               <button
@@ -397,7 +534,7 @@ export default function SettingsPanel({
                 />
               </button>
             </div>
-            {modelList?.source === "fallback" && (
+            {modelList?.source === "fallback" && modelList.error && (
               <div
                 className="text-[10.5px] text-soft mt-0.5"
                 title={modelList.error}
@@ -405,50 +542,45 @@ export default function SettingsPanel({
                 Couldn't fetch live models — showing known ones
               </div>
             )}
+            <div className="mt-1 text-[10.5px] leading-relaxed text-soft">
+              {PROVIDER_RECOMMENDATIONS[provider.id]}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fast image model">
-              <input
+              <ModelSelect
                 value={provider.fastImageModel || ""}
-                onChange={(e) =>
-                  updateProvider({ fastImageModel: e.target.value })
-                }
-                placeholder="e.g. gemini-2.0-flash"
-                className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                models={modelList?.imageModels ?? []}
+                loading={modelsLoading}
+                onChange={(id) => updateProvider({ fastImageModel: id })}
               />
             </Field>
             <Field label="Quality image model">
-              <input
+              <ModelSelect
                 value={provider.qualityImageModel || ""}
-                onChange={(e) =>
-                  updateProvider({ qualityImageModel: e.target.value })
-                }
-                placeholder="e.g. imagen-3.0-generate-002"
-                className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                models={modelList?.imageModels ?? []}
+                loading={modelsLoading}
+                onChange={(id) => updateProvider({ qualityImageModel: id })}
               />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fast audio model">
-              <input
+              <ModelSelect
                 value={provider.fastAudioModel || ""}
-                onChange={(e) =>
-                  updateProvider({ fastAudioModel: e.target.value })
-                }
-                placeholder="e.g. gemini-2.0-flash"
-                className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                models={modelList?.audioModels ?? []}
+                loading={modelsLoading}
+                onChange={(id) => updateProvider({ fastAudioModel: id })}
               />
             </Field>
             <Field label="Quality audio model">
-              <input
+              <ModelSelect
                 value={provider.qualityAudioModel || ""}
-                onChange={(e) =>
-                  updateProvider({ qualityAudioModel: e.target.value })
-                }
-                placeholder="e.g. gemini-2.5-pro"
-                className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                models={modelList?.audioModels ?? []}
+                loading={modelsLoading}
+                onChange={(id) => updateProvider({ qualityAudioModel: id })}
               />
             </Field>
           </div>
@@ -948,7 +1080,7 @@ export default function SettingsPanel({
         </div>
 
         <div className="px-4 py-3 border-t border-border bg-bg text-[11px] text-muted">
-          Settings sync to this browser only. Keys never leave your device.
+          Settings and keys are stored only in this browser profile.
         </div>
       </div>
     </div>

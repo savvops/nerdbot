@@ -23,5 +23,8 @@ Thumbs.db
 .cache/
 .brave-test-profile/
 
+# Generated Chrome Web Store screenshots
+store-assets/
+
 # Store upload packages
 nerdbot-v*.zip

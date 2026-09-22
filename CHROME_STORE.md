@@ -1,5 +1,7 @@
 # Publishing Nerdbot to the Chrome Web Store
 
+> **Status:** Published and publicly installable: https://chromewebstore.google.com/detail/nerdbot/oegoeflmcbahliaahlameajidnhlpiog
+
 ## 1. Build the upload package
 
 ```bash
@@ -39,10 +41,11 @@ justifications. Suggested wording:
 | Permission | Justification |
 |---|---|
 | `storage` | Persists user settings, chat history, personas, and the local RAG knowledge base on-device. |
+| `identity` | Opens OpenRouter's sign-in/authorization window and securely returns the OAuth callback to Nerdbot, so users never need to copy or paste an API key. |
 | `activeTab` / `tabs` | Reads the title/URL of open tabs so the user can share a tab's content with the assistant. |
 | `scripting` | Injects the page reader and quick-chat overlay on demand into the tab the user is acting on (no persistent all-sites content script). |
 | `sidePanel` | The entire UI lives in Chrome's side panel. |
-| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, read other tabs, or use a self-hosted/DuckDuckGo search backend. Not requested at install; the extension shows no all-sites warning on install. |
+| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, read other tabs, use a self-hosted/DuckDuckGo search backend, or explicitly check documented localhost AI endpoints. Not requested at install; the extension shows no all-sites warning on install. |
 
 Also on the Privacy tab:
 
@@ -52,10 +55,12 @@ Also on the Privacy tab:
   (no persistent all-sites content script); the extension calls
   LLM HTTP APIs (Gemini, OpenAI, OpenRouter, Anthropic, LM Studio, Ollama)
   but does not load or execute remote code.
-- **Data usage**: page content and user prompts are sent to the LLM provider
-  the user configures, using the user's own API key. Nothing is sent to any
-  server operated by the developer. Chat history and keys stay in
-  `chrome.storage.local`. You must certify the data-use disclosures and
+- **Data usage**: page content and user prompts are sent to the configured LLM
+  provider. Optional account sign-in also sends email/authentication data and
+  synchronized text conversations and pins to the developer's Convex backend.
+  Provider keys remain device-local; attachments are not cloud-synced in this
+  preview. Update the Store disclosures before publishing this build. You must
+  certify the data-use disclosures and
   should link a privacy policy URL (a simple GitHub Pages / repo
   PRIVACY.md link is acceptable).
 

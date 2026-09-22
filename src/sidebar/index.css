@@ -53,6 +53,12 @@ body {
   overscroll-behavior: none;
 }
 
+@supports (height: 100dvh) { #root { height: 100dvh; } }
+@media (max-width: 600px) {
+  input, textarea, select { font-size: 16px !important; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
 /* Brand gradient for the Nerdbot mark */
 .nb-brand-gradient {
   background: linear-gradient(135deg, #8aa4ff 0%, #c089ff 50%, #ff8ad1 100%);

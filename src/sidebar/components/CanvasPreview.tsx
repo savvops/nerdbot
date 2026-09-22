@@ -6,6 +6,10 @@ export default function CanvasPreview({ code, lang }: { code: string; lang: stri
       chrome.storage.local.set({ canvas_code: code, canvas_lang: lang }, () => {
         chrome.tabs.create({ url: chrome.runtime.getURL('canvas.html') });
       });
+    } else {
+      localStorage.setItem('canvas_code', code);
+      localStorage.setItem('canvas_lang', lang);
+      window.open('/canvas.html', '_blank', 'noopener');
     }
   };
 

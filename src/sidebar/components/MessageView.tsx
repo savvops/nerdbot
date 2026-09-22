@@ -38,6 +38,14 @@ export default function MessageView({
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
+  if (message.role === 'tool') {
+    return <details className="rounded-lg border border-border px-3 py-2 text-xs text-muted">
+      <summary className="cursor-pointer">Tool result · details</summary>
+      <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words">{message.content}</pre>
+    </details>;
+  }
+  if (message.role === 'assistant' && !message.pending && !message.content && message.toolCalls?.length) return null;
+
   if (message.role === 'user') {
     return (
       <div className="flex justify-end animate-slide-up group">

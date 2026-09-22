@@ -6,6 +6,7 @@ interface Props {
   models: ModelInfo[];
   loading?: boolean;
   onChange: (id: string) => void;
+  placeholder?: string;
 }
 
 const CUSTOM = "__custom__";
@@ -15,7 +16,7 @@ const CUSTOM = "__custom__";
  * "Custom…" escape hatch to a free-text input. Meant to be used inside a
  * <Field>, so it renders no label of its own.
  */
-export default function ModelSelect({ value, models, loading, onChange }: Props) {
+export default function ModelSelect({ value, models, loading, onChange, placeholder = "Enter a model id…" }: Props) {
   const [custom, setCustom] = useState(false);
 
   // A saved model that the provider no longer lists should never be lost.
@@ -28,7 +29,7 @@ export default function ModelSelect({ value, models, loading, onChange }: Props)
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoFocus
-          placeholder="Enter a model id…"
+          placeholder={placeholder}
           className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
         />
         <button
@@ -57,6 +58,7 @@ export default function ModelSelect({ value, models, loading, onChange }: Props)
         loading ? " opacity-60" : ""
       }`}
     >
+      {!value && <option value="">Not configured</option>}
       {value && !known && (
         <option value={value}>{value} (custom)</option>
       )}

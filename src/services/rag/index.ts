@@ -11,13 +11,19 @@ import { embedTexts, embedQuery } from './embeddings';
 import { insertChunks, searchKnowledge, deleteByDocId, deleteByFolderId, getChunkCount } from './store';
 import type { KnowledgeFolder, KnowledgeDoc, KnowledgeChunk, KnowledgeSearchResult } from './types';
 
-const FOLDERS_KEY = 'nerdbot.knowledge.folders.v1';
+export const FOLDERS_KEY = 'nerdbot.knowledge.folders.v1';
 const DOCS_KEY = 'nerdbot.knowledge.docs.v1';
 
 // ---------- Folders ----------
 
 export async function listFolders(): Promise<KnowledgeFolder[]> {
-  return get<KnowledgeFolder[]>(FOLDERS_KEY, []);
+  const folders = await get<KnowledgeFolder[]>(FOLDERS_KEY, []);
+  return folders.map(folder => ({ ...folder, updatedAt: folder.updatedAt ?? folder.createdAt }));
+}
+
+/** Replaces project metadata only. Documents and vector chunks remain device-local. */
+export async function replaceFolders(folders: KnowledgeFolder[]): Promise<void> {
+  await set(FOLDERS_KEY, folders);
 }
 
 export async function createFolder(
@@ -26,11 +32,13 @@ export async function createFolder(
   extras: { description?: string; systemPrompt?: string } = {}
 ): Promise<KnowledgeFolder> {
   const folders = await listFolders();
+  const now = Date.now();
   const folder: KnowledgeFolder = {
     id: uid(),
     name: name.trim(),
     emoji,
-    createdAt: Date.now(),
+    createdAt: now,
+    updatedAt: now,
     description: extras.description?.trim() || undefined,
     systemPrompt: extras.systemPrompt?.trim() || undefined,
   };
@@ -48,6 +56,7 @@ export async function updateFolder(
   const updated: KnowledgeFolder = {
     ...folders[idx],
     ...patch,
+    updatedAt: Date.now(),
     name: patch.name?.trim() ?? folders[idx].name,
     description: patch.description?.trim() || undefined,
     systemPrompt: patch.systemPrompt?.trim() || undefined,

@@ -1,6 +1,10 @@
 /// <reference types="chrome" />
 
 import { ensureContentScript } from './ensureContentScript';
+import { browserCommand } from './browserController';
+import { initBridgeClient } from './bridgeClient';
+
+initBridgeClient();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel
@@ -33,6 +37,7 @@ chrome.commands?.onCommand?.addListener(async (command) => {
 });
 
 type Msg =
+  | { type: 'BROWSER_CONTROL'; payload: Record<string, unknown> }
   | { type: 'GET_PAGE_CONTEXT' }
   | { type: 'GET_PAGE_TEXT' }
   | { type: 'CAPTURE_SCREENSHOT' }
@@ -44,6 +49,11 @@ type Msg =
 chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
   (async () => {
     try {
+      if (message.type === 'BROWSER_CONTROL') {
+        if (_sender.id !== chrome.runtime.id || !_sender.url?.startsWith(chrome.runtime.getURL('')) || _sender.tab) throw new Error('Browser control requires the Nerdbot interface.');
+        sendResponse({ ok: true, data: await browserCommand(message.payload) });
+        return;
+      }
       if (message.type === 'PING') {
         sendResponse({ ok: true });
         return;

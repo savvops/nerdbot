@@ -40,6 +40,9 @@ export default function CanvasApp() {
         if (res.canvas_code) setCode(res.canvas_code);
         if (res.canvas_lang) setLang(res.canvas_lang);
       });
+    } else {
+      setCode(localStorage.getItem('canvas_code') || '');
+      setLang(localStorage.getItem('canvas_lang') || 'html');
     }
   }, []);
 

@@ -5,6 +5,7 @@ export interface KnowledgeFolder {
   name: string;
   emoji: string;
   createdAt: number;
+  updatedAt: number;
   /** Optional — when set, this folder behaves as a Project (chats can live inside it). */
   description?: string;
   /** Optional — prepended to the system prompt for chats inside this project. */

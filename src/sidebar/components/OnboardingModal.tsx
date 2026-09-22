@@ -1,13 +1,20 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Loader2, X } from "lucide-react";
 import BrandMark from "./BrandMark";
 import { SUGGESTIONS as HERO_SUGGESTIONS } from "./HeroEmpty";
-import ModelSelect from "./ModelSelect";
-import { validateApiKey, type ModelInfo } from "../../services/models";
-import { PROVIDER_DOCS, PROVIDER_LABELS } from "../../services/config";
+import { validateApiKey } from "../../services/models";
+import {
+  OPENROUTER_FREE_MODEL,
+  PROVIDER_LABELS,
+} from "../../services/config";
 import { withRetry } from "../../utils/retry";
 import type { ProviderId, Settings } from "../../services/types";
 import { hasAllUrls, requestAllUrls } from "../../services/permissions";
+import { connectOpenRouter } from "../../services/openRouterAuth";
+import {
+  detectLocalProviders,
+  preferredLocalModels,
+} from "../../services/localProviders";
 
 interface Props {
   open: boolean;
@@ -22,35 +29,15 @@ interface Props {
   onTryPrompt: (text: string) => void;
 }
 
-type Step = "welcome" | "provider" | "key" | "validating" | "models" | "done";
-
-/** Only these two providers are offered during first-run onboarding. */
-type OnboardProvider = Extract<ProviderId, "gemini" | "openrouter">;
+type Step = "welcome" | "connect" | "validating" | "done";
 
 /** First three HeroEmpty suggestions seed the "done" step. */
 const SUGGESTIONS = HERO_SUGGESTIONS.slice(0, 3).map((s) => s.text);
-
-const INSTRUCTIONS: Record<OnboardProvider, string[]> = {
-  gemini: ["Open Google AI Studio", 'Click "Create API key"', "Paste it below"],
-  openrouter: ["Open OpenRouter keys", "Create a key", "Paste it below"],
-};
 
 const primaryBtn =
   "px-4 py-2 rounded-lg text-[13px] font-medium bg-accent text-bg hover:brightness-110 shadow-md shadow-accent/20 transition-all";
 const ghostBtn =
   "px-3 py-1.5 rounded-lg text-[13px] text-muted hover:text-ink hover:bg-elevated";
-
-/** Small labelled wrapper matching the app's compact form-field style. */
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <label className="block text-[11.5px] text-muted font-medium mb-1">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
 
 export default function OnboardingModal({
   open,
@@ -61,13 +48,12 @@ export default function OnboardingModal({
   onTryPrompt,
 }: Props) {
   const [step, setStep] = useState<Step>("welcome");
-  const [pid, setPid] = useState<OnboardProvider>("gemini");
   const [apiKey, setApiKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
+  const [selectedProvider, setSelectedProvider] =
+    useState<ProviderId>("openrouter");
+  const [localModels, setLocalModels] = useState<string[]>([]);
+  const [localBusy, setLocalBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fetched, setFetched] = useState<ModelInfo[]>([]);
-  const [fastModel, setFastModel] = useState("");
-  const [qualityModel, setQualityModel] = useState("");
   const [pageAccess, setPageAccess] = useState<
     "unknown" | "granted" | "denied"
   >("unknown");
@@ -77,13 +63,11 @@ export default function OnboardingModal({
   useEffect(() => {
     if (open) {
       setStep("welcome");
-      setPid("gemini");
       setApiKey("");
-      setShowKey(false);
+      setSelectedProvider("openrouter");
+      setLocalModels([]);
+      setLocalBusy(false);
       setError(null);
-      setFetched([]);
-      setFastModel("");
-      setQualityModel("");
       setPageAccess("unknown");
       setPermissionBusy(false);
       void hasAllUrls().then((granted) => {
@@ -92,71 +76,82 @@ export default function OnboardingModal({
     }
   }, [open]);
 
-  // Validate the key on entering the "validating" step.
-  useEffect(() => {
-    if (step !== "validating") return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const models = await withRetry(
-          () =>
-            validateApiKey({
-              ...settings.providers[pid],
-              apiKey: apiKey.trim(),
-            }),
-          2, // 1 retry
-          (e) => e instanceof Error && !e.message.includes("Invalid API key"),
-        );
-        if (cancelled) return;
-        const def = settings.providers[pid];
-        // When the config default is missing from the live list, prefer a
-        // model whose name suggests the right tier over an arbitrary first
-        // entry (API order is unsorted and can lead with experimental models).
-        const pick = (want: string, hint: RegExp) =>
-          models.some((m) => m.id === want)
-            ? want
-            : (models.find((m) => hint.test(m.id))?.id ?? models[0]?.id ?? want);
-        setFetched(models);
-        setFastModel(pick(def.fastModel, /flash|mini|haiku|lite|small/i));
-        setQualityModel(pick(def.qualityModel, /pro|sonnet|opus|large/i));
-        setError(null);
-        setStep("models");
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Couldn’t verify the key");
-        setStep("key");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  const startOpenRouterConnection = async () => {
+    setError(null);
+    setStep("validating");
+    try {
+      const key = await connectOpenRouter();
+      await withRetry(
+        () =>
+          validateApiKey({
+            ...settings.providers.openrouter,
+            apiKey: key,
+          }),
+        2,
+        (e) => e instanceof Error && !e.message.includes("Invalid API key"),
+      );
+      setApiKey(key);
+      setSelectedProvider("openrouter");
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn’t connect OpenRouter");
+      setStep("connect");
+    }
+  };
 
   if (!open) return null;
 
-  const buildNext = (): Settings => ({
-    ...settings,
-    activeProvider: pid,
-    onboardedAt: Date.now(),
-    providers: {
-      ...settings.providers,
-      [pid]: {
-        ...settings.providers[pid],
-        apiKey: apiKey.trim(),
-        fastModel,
-        qualityModel,
+  const buildNext = (): Settings => {
+    const current = settings.providers[selectedProvider];
+    const configured =
+      selectedProvider === "openrouter"
+        ? {
+            ...current,
+            apiKey: apiKey.trim(),
+            fastModel: OPENROUTER_FREE_MODEL,
+            qualityModel: OPENROUTER_FREE_MODEL,
+          }
+        : {
+            ...current,
+            fastModel: localModels[0] || current.fastModel,
+            qualityModel: localModels[1] || localModels[0] || current.qualityModel,
+          };
+    return {
+      ...settings,
+      activeProvider: selectedProvider,
+      onboardedAt: Date.now(),
+      providers: {
+        ...settings.providers,
+        [selectedProvider]: configured,
       },
-    },
-  });
+    };
+  };
+
+  const detectAndUseLocalAi = async () => {
+    setError(null);
+    setLocalBusy(true);
+    const { permissionGranted, results } = await detectLocalProviders(settings);
+    setLocalBusy(false);
+    if (!permissionGranted) {
+      setError("Localhost access was not granted. You can still use OpenRouter or configure a provider in Settings.");
+      return;
+    }
+    const found = results.find((result) => result.reachable && result.models.length > 0);
+    if (!found) {
+      setError("No ready Ollama or LM Studio server was found. Start a local server with a model loaded, or continue with OpenRouter.");
+      return;
+    }
+    const recommended = preferredLocalModels(found);
+    setSelectedProvider(found.id);
+    setLocalModels([recommended.fastModel, recommended.qualityModel]);
+    setStep("done");
+  };
 
   // Commit the configured settings first, then optionally seed a prompt.
   const finish = (prompt?: string) => {
     onComplete(buildNext());
     if (prompt) onTryPrompt(prompt);
   };
-
-  const canContinueKey = apiKey.trim().length > 0;
 
   const requestPageAccess = async () => {
     setPermissionBusy(true);
@@ -198,134 +193,71 @@ export default function OnboardingModal({
                   Your browser, now with a brain.
                 </div>
                 <p className="text-[13px] text-muted mt-1.5 max-w-[300px]">
-                  Nerdbot runs on your own AI key — free tiers work great.
+                  Start with a free AI model. No Nerdbot subscription required.
                 </p>
               </div>
             </div>
             <button
-              onClick={() => setStep("provider")}
+              onClick={() => setStep("connect")}
               className={`w-full ${primaryBtn}`}
             >
-              Get started
+              Use Nerdbot Free
             </button>
           </div>
         )}
 
-        {step === "provider" && (
+        {step === "connect" && (
           <>
-            <div className="p-4 space-y-2.5">
-              <div className="text-[12.5px] text-muted">
-                Pick a provider to get your free key from.
-              </div>
-              {(["gemini", "openrouter"] as const).map((id) => {
-                const selected = pid === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setPid(id)}
-                    className={`w-full text-left px-3.5 py-3 rounded-xl border transition-colors ${
-                      selected
-                        ? "border-accent bg-accent/10"
-                        : "border-border bg-surface hover:bg-elevated"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="text-[13.5px] font-semibold text-ink">
-                        {PROVIDER_LABELS[id]}
-                      </div>
-                      {id === "gemini" && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-accent/20 text-accent">
-                          Recommended
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11.5px] text-muted mt-0.5">
-                      {id === "gemini"
-                        ? "Generous free tier"
-                        : "Free models available — one key, many models"}
-                    </div>
-                  </button>
-                );
-              })}
-              <button
-                onClick={onOpenSettings}
-                className="w-full text-center text-[11.5px] text-soft hover:text-ink pt-1"
-              >
-                I’ll use something else / set up later
-              </button>
-            </div>
-            <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-bg">
-              <button onClick={() => setStep("welcome")} className={ghostBtn}>
-                ← Back
-              </button>
-              <button onClick={() => setStep("key")} className={primaryBtn}>
-                Continue
-              </button>
-            </div>
-          </>
-        )}
-
-        {step === "key" && (
-          <>
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
               {error && (
                 <div className="text-[12px] text-danger bg-danger/10 border border-danger/30 rounded-lg px-3 py-2">
                   {error}
                 </div>
               )}
-              <ol className="space-y-1.5">
-                {INSTRUCTIONS[pid].map((t, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-2 text-[12.5px] text-soft"
-                  >
-                    <span className="shrink-0 w-4 h-4 rounded-full bg-elevated text-[10px] flex items-center justify-center text-muted font-medium">
-                      {i + 1}
-                    </span>
-                    {t}
-                  </li>
-                ))}
-              </ol>
+              <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="text-[13.5px] font-semibold text-ink">
+                    {PROVIDER_LABELS.openrouter}
+                  </div>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-accent/20 text-accent">
+                    Free model
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted">
+                  Sign in or create an account in the window that opens. No API
+                  key to create, copy, or paste. No payment method required.
+                  Free-model availability and rate limits can change.
+                </p>
+              </div>
               <button
-                onClick={() => window.open(PROVIDER_DOCS[pid], "_blank")}
-                className="w-full px-3 py-2 rounded-lg text-[13px] font-medium border border-accent/50 text-accent hover:bg-accent/10 transition-colors"
+                onClick={startOpenRouterConnection}
+                className={`w-full ${primaryBtn}`}
               >
-                Get a key ↗
+                Continue with OpenRouter
               </button>
-              <div className="relative">
-                <input
-                  type={showKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  autoFocus
-                  placeholder="Paste your API key"
-                  className="w-full bg-bg border border-border focus:border-accent/50 rounded-lg pl-3 pr-9 py-2 text-[13px] outline-none"
-                />
+              <div className="border-t border-border pt-4">
+                <div className="text-[12.5px] font-medium text-ink">Already run AI locally?</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                  After you click, Nerdbot checks only the default Ollama and LM Studio localhost endpoints. It never reads CLI credentials.
+                </p>
                 <button
-                  onClick={() => setShowKey((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted hover:text-ink"
+                  onClick={detectAndUseLocalAi}
+                  disabled={localBusy}
+                  className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-[12.5px] font-medium text-ink transition-colors hover:bg-elevated disabled:opacity-50"
                 >
-                  {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  {localBusy ? "Checking this computer…" : "Check for local AI"}
                 </button>
               </div>
-            </div>
-            <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-bg">
-              <button onClick={() => setStep("provider")} className={ghostBtn}>
-                ← Back
-              </button>
               <button
-                onClick={() => {
-                  setError(null);
-                  setStep("validating");
-                }}
-                disabled={!canContinueKey}
-                className={
-                  canContinueKey
-                    ? primaryBtn
-                    : "px-4 py-2 rounded-lg text-[13px] font-medium bg-elevated text-soft cursor-not-allowed"
-                }
+                onClick={onOpenSettings}
+                className="w-full text-center text-[11.5px] text-soft hover:text-ink pt-1"
               >
-                Continue
+                Use another provider
+              </button>
+            </div>
+            <div className="px-4 py-3 border-t border-border flex items-center bg-bg">
+              <button onClick={() => setStep("welcome")} className={ghostBtn}>
+                ← Back
               </button>
             </div>
           </>
@@ -334,40 +266,8 @@ export default function OnboardingModal({
         {step === "validating" && (
           <div className="p-8 flex flex-col items-center justify-center gap-3 text-center">
             <Loader2 size={26} className="text-accent animate-spin" />
-            <div className="text-[13px] text-muted">Checking your key…</div>
+            <div className="text-[13px] text-muted">Waiting for OpenRouter…</div>
           </div>
-        )}
-
-        {step === "models" && (
-          <>
-            <div className="p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-[13px] font-medium text-accent">
-                <Check size={15} /> Key works
-              </div>
-              <Field label="Fast model">
-                <ModelSelect
-                  value={fastModel}
-                  models={fetched}
-                  onChange={setFastModel}
-                />
-              </Field>
-              <Field label="Quality model">
-                <ModelSelect
-                  value={qualityModel}
-                  models={fetched}
-                  onChange={setQualityModel}
-                />
-              </Field>
-            </div>
-            <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2 bg-bg">
-              <button onClick={() => setStep("key")} className={ghostBtn}>
-                ← Back
-              </button>
-              <button onClick={() => setStep("done")} className={primaryBtn}>
-                Continue
-              </button>
-            </div>
-          </>
         )}
 
         {step === "done" && (
@@ -380,7 +280,10 @@ export default function OnboardingModal({
                 <div>
                   <div className="text-[14px] font-semibold">You’re all set</div>
                   <p className="text-[12.5px] text-muted mt-1 max-w-[280px]">
-                    Try one of these to get going, or just start typing.
+                    {selectedProvider === "openrouter"
+                      ? "Connected to OpenRouter's free model. Free availability and limits can change."
+                      : `Connected to ${PROVIDER_LABELS[selectedProvider]} on this computer.`}
+                    {" "}Try one of these, or just start typing.
                   </p>
                 </div>
               </div>

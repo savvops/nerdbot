@@ -75,7 +75,12 @@ export async function extractPdfText(file: File | Blob): Promise<string> {
 
 export async function captureScreenshotAttachment(): Promise<Attachment> {
   if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
-    throw new Error('Screenshot only available in the extension.');
+    const { controlState, controlCommand } = await import('./browserControl');
+    const target = controlState();
+    if (!target) throw new Error('Choose Control this tab before capturing a PC screenshot.');
+    const dataUrl = await controlCommand({ op: 'screenshot', session: target.session });
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,')) throw new Error('Screenshot unavailable.');
+    return { id: uid(), kind: 'screenshot', name: 'PC-tab.png', mimeType: 'image/png', data: dataUrl.split(',')[1] };
   }
   const res = await new Promise<{ ok: boolean; data?: string; error?: string }>((resolve) => {
     chrome.runtime.sendMessage({ type: 'CAPTURE_SCREENSHOT' }, (r) => {
