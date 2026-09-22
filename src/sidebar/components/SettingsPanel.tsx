@@ -1062,6 +1062,26 @@ export default function SettingsPanel({
           </Field>
 
           {/* ── Help & Feedback ── */}
+          <Field label="Legacy PC bridge">
+            <label className="flex items-start gap-2.5 rounded-lg border border-border bg-bg px-3 py-2.5 text-[12px]">
+              <input
+                type="checkbox"
+                checked={Boolean(settings.bridgeEnabled)}
+                onChange={(e) =>
+                  onChange({ ...settings, bridgeEnabled: e.target.checked })
+                }
+                className="mt-0.5 accent-[rgb(var(--nb-accent))]"
+              />
+              <span>
+                <span className="block text-ink">Connect to localhost:3030</span>
+                <span className="mt-0.5 block text-[10.5px] text-soft">
+                  Only enable this when the optional Nerdbot bridge is running
+                  on this PC. Account chat sync does not require it.
+                </span>
+              </span>
+            </label>
+          </Field>
+
           <div className="border-t border-border pt-4">
             <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-3">
               Help & Feedback

@@ -128,6 +128,7 @@ const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
 
 export const DEFAULT_SETTINGS: Settings = {
   experimentalJev: false,
+  bridgeEnabled: false,
   activeProvider: "gemini",
   speed: "fast",
   temperature: 0.7,

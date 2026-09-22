@@ -1,8 +1,10 @@
 # Convex chat sync preview
 
-The shared mobile/extension UI uses the Nerdbot Convex development deployment (`decisive-puma-800`, team `savvops-ai`). `VITE_CONVEX_URL` and deployment selection live in ignored `.env.local`. Never ship a Convex admin/deploy key to a client. The frontend receives only the public deployment URL.
+The shared mobile/extension UI uses the Nerdbot Convex development deployment (`decisive-puma-800`, team `savvops-ai`). Its public client URL is the built-in default so builds made on different PCs retain account sync; `VITE_CONVEX_URL` can override it for another deployment. Never ship a Convex admin/deploy key to a client.
 
 ## Using it
+
+The optional legacy bridge at `localhost:3030` is unrelated to account sync. It is disabled by default; enable **Settings -> Legacy PC bridge** only on a computer where `npm run bridge` is intentionally running.
 
 Choose **Sign in to sync**, create an email/password account, then sign into the same account on your other device. A Convex dashboard login is separate from a Nerdbot user account. Passwords require 12–128 characters. Signed-in History includes active conversations and project-folder metadata from every device; opening a conversation on one device does not force other devices to switch views.
 

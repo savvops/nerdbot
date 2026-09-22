@@ -5,7 +5,10 @@ import { api } from '../../convex/_generated/api';
 import { createChatSync } from '../services/chatSync';
 import App from './App';
 
-const url = import.meta.env.VITE_CONVEX_URL as string | undefined;
+// This is a public client endpoint, not a credential. The environment value
+// remains an override for builds that target another Convex deployment.
+const url = (import.meta.env.VITE_CONVEX_URL as string | undefined)
+  || 'https://decisive-puma-800.convex.cloud';
 const client = url ? new ConvexReactClient(url) : null;
 
 function SignIn({ onClose }: { onClose: () => void }) {

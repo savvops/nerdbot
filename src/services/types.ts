@@ -98,6 +98,8 @@ export interface ProviderConfig {
 export interface Settings {
   /** Opt-in OpenRouter decision experiment. Never grants action permissions. */
   experimentalJev?: boolean;
+  /** Connect to the separately installed localhost mobile/browser bridge. */
+  bridgeEnabled?: boolean;
   activeProvider: ProviderId;
   speed: SpeedMode;
   temperature: number;

@@ -3,6 +3,7 @@ import { ensureContentScript } from './ensureContentScript';
 
 let socket: WebSocket | null = null;
 let retry: ReturnType<typeof setTimeout> | undefined;
+let enabled = false;
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   return tab?.id == null ? null : { tabId: tab.id, url: tab.url || '', title: tab.title || '' };
@@ -11,6 +12,7 @@ function send(message: unknown) { if (socket?.readyState === WebSocket.OPEN) soc
 
 export function initBridgeClient() {
   const connect = () => {
+    if (!enabled) return;
     if (socket && socket.readyState < WebSocket.CLOSING) return;
     const ws = new WebSocket('ws://localhost:3030');
     socket = ws;
@@ -42,16 +44,35 @@ export function initBridgeClient() {
     ws.onclose = () => {
       if (socket === ws) socket = null;
       void browserCommand({ op: 'release' });
-      if (!retry) retry = setTimeout(() => { retry = undefined; connect(); }, 3000);
+      if (enabled && !retry) retry = setTimeout(() => { retry = undefined; connect(); }, 3000);
     };
     ws.onerror = () => ws.close();
   };
-  connect();
+  const setEnabled = (value: boolean) => {
+    if (enabled === value) return;
+    enabled = value;
+    if (enabled) connect();
+    else {
+      if (retry) clearTimeout(retry);
+      retry = undefined;
+      const current = socket;
+      socket = null;
+      current?.close();
+      void browserCommand({ op: 'release' });
+    }
+  };
+  void chrome.storage.local.get('nerdbot.settings.v1').then(data => {
+    setEnabled(Boolean(data['nerdbot.settings.v1']?.bridgeEnabled));
+  });
   chrome.tabs.onActivated.addListener(() => { void activeTab().then((tab) => send({ type: 'TAB_CHANGED', tab })); });
   chrome.tabs.onUpdated.addListener((_id, change, tab) => {
     if (tab.active && (change.url || change.title)) void activeTab().then((value) => send({ type: 'TAB_CHANGED', tab: value }));
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes['nerdbot.settings.v1']) send({ type: 'SETTINGS_UPDATED', settings: changes['nerdbot.settings.v1'].newValue });
+    if (area === 'local' && changes['nerdbot.settings.v1']) {
+      const settings = changes['nerdbot.settings.v1'].newValue;
+      setEnabled(Boolean(settings?.bridgeEnabled));
+      send({ type: 'SETTINGS_UPDATED', settings });
+    }
   });
 }
