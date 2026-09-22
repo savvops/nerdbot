@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Header from "./components/Header";
-import BrowserControlBar from './components/BrowserControlBar';
 import { controlCommand } from '../services/browserControl';
 import * as localChats from '../services/chatManager';
 import type { ChatManager, ChatSync } from '../services/chatSync';
@@ -21,6 +20,9 @@ import ContextRing from "./components/ContextRing";
 import ProjectModal from "./components/ProjectModal";
 import BugReportModal from "./components/BugReportModal";
 import OnboardingModal from "./components/OnboardingModal";
+import BrowserControlBar from "./components/BrowserControlBar";
+import SafetyConfirmModal from "./components/SafetyConfirmModal";
+import { assessActionRisk } from "../services/reflex";
 
 import { executeTool } from "../services/tools";
 import {
@@ -181,15 +183,31 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
   const [multiTabOpen, setMultiTabOpen] = useState(false);
   const [editing, setEditing] = useState<Message | null>(null);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
+  const [activeBrowserAction, setActiveBrowserAction] = useState<string | null>(null);
+  const [showBadges, setShowBadges] = useState(false);
+  const [safetyModal, setSafetyModal] = useState<{
+    actionName: string;
+    targetDescription: string;
+    reason: string;
+    resolve: (approved: boolean) => void;
+  } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Ensures the share-permission prompt only fires once per session.
   const askedShareRef = useRef(false);
-
   // Bootstrap
   useEffect(() => {
     let cancelled = false;
+    // Clear any visual overlays from web pages on start
+    if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+      chrome.runtime
+        .sendMessage({
+          type: "EXECUTE_BROWSER_ACTION",
+          payload: { action: "clear_overlays" },
+        })
+        .catch(() => undefined);
+    }
     (async () => {
       const [s, c, h, p, sk, so] = await Promise.all([
         loadSettings(),
@@ -855,12 +873,57 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
             const count = (repeatedCalls.get(signature) ?? 0) + 1;
             repeatedCalls.set(signature, count);
             if (count > 2) forceAnswer = true;
+
+            if (tc.name.startsWith("browser_")) {
+              let actionText = "Running browser action...";
+              if (tc.name === "browser_scan_page") actionText = "Scanning page elements...";
+              else if (tc.name === "browser_click") actionText = `Clicking ${tc.args.targetId}...`;
+              else if (tc.name === "browser_type") actionText = `Typing into ${tc.args.targetId}...`;
+              else if (tc.name === "browser_navigate") actionText = `Navigating to ${tc.args.url}...`;
+              else if (tc.name === "browser_scroll") actionText = `Scrolling ${tc.args.direction || "down"}...`;
+              else if (tc.name === "browser_select") actionText = `Selecting ${tc.args.value}...`;
+              setActiveBrowserAction(actionText);
+
+              if (tc.name === "browser_click" || tc.name === "browser_type") {
+                const risk = assessActionRisk(
+                  tc.name === "browser_click" ? "click" : "type",
+                  tc.args.targetId || "",
+                  tc.args.text || ""
+                );
+                if (risk.requiresConfirmation) {
+                  const approved = await requestSafetyApproval(
+                    tc.name,
+                    tc.args.targetId || "element",
+                    risk.reason
+                  );
+                  if (!approved) {
+                    setActiveBrowserAction(null);
+                    const message: Message = {
+                      id: uid(),
+                      role: "tool",
+                      content: "Action was denied by user for safety reasons.",
+                      toolCallId: tc.id,
+                      createdAt: Date.now(),
+                    };
+                    sendMessages.push(message);
+                    next = appendMessage(next, message);
+                    continue;
+                  }
+                }
+              }
+            }
+
             const result = count > 2 ? "Repeated command stopped. Answer from the evidence already collected; explain what remains unknown." : index >= 12 ? "Tool batch limit reached. Use existing evidence to answer."
               : await executeTool(tc.name, tc.args, {
                 signal: ctrl.signal, embedApiKey: embedCfg.apiKey,
                 embedBaseUrl: embedCfg.baseUrl, embedModel: embedCfg.embeddingModel,
                 search: settings.search,
               });
+
+            if (tc.name.startsWith("browser_")) {
+              setActiveBrowserAction(null);
+            }
+
             const message: Message = { id: uid(), role: "tool", content: result, toolCallId: tc.id, createdAt: Date.now() };
             if (tc.name === 'browser_screenshot') {
               try {
@@ -894,6 +957,7 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
       } finally {
         abortRef.current = null;
         setBusy(false);
+        setActiveBrowserAction(null);
       }
     },
     [
@@ -912,9 +976,43 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
     ],
   );
 
+  const requestSafetyApproval = useCallback(
+    (actionName: string, targetDescription: string, reason: string) => {
+      return new Promise<boolean>((resolve) => {
+        setSafetyModal({ actionName, targetDescription, reason, resolve });
+      });
+    },
+    [],
+  );
+
+  const handleToggleBadges = useCallback(async () => {
+    const nextVal = !showBadges;
+    setShowBadges(nextVal);
+    if (!nextVal) {
+      await chrome.runtime.sendMessage({
+        type: "EXECUTE_BROWSER_ACTION",
+        payload: { action: "clear_overlays" },
+      });
+    } else {
+      await chrome.runtime.sendMessage({
+        type: "EXECUTE_BROWSER_ACTION",
+        payload: { action: "scan_page", args: { showOverlays: true } },
+      });
+    }
+  }, [showBadges]);
+
   const cancel = useCallback(() => {
     abortRef.current?.abort();
     void controlCommand({ op: 'release' }).catch(() => undefined);
+    setActiveBrowserAction(null);
+    if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+      chrome.runtime
+        .sendMessage({
+          type: "EXECUTE_BROWSER_ACTION",
+          payload: { action: "clear_overlays" },
+        })
+        .catch(() => undefined);
+    }
   }, []);
 
   const handleRewind = useCallback(
@@ -937,12 +1035,20 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
 
   const handleRegenerate = useCallback(
     async (assistantId: string) => {
-      // Drop the assistant message and re-send the last user message
+      // Drop the assistant turn (including any preceding tool calls/results) and re-send the last user message
       const idx = chat.messages.findIndex((m) => m.id === assistantId);
       if (idx < 0) return;
+      let lastUserIdx = -1;
+      for (let i = idx - 1; i >= 0; i--) {
+        if (chat.messages[i].role === "user") {
+          lastUserIdx = i;
+          break;
+        }
+      }
+      const cutIdx = lastUserIdx >= 0 ? lastUserIdx + 1 : idx;
       const truncated: Chat = {
         ...chat,
-        messages: chat.messages.slice(0, idx),
+        messages: chat.messages.slice(0, cutIdx),
       };
       setChat(truncated);
       // small tick so state updates land before send reads it
@@ -1002,7 +1108,7 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
   const lastAssistantId = useMemo(() => {
     for (let i = chat.messages.length - 1; i >= 0; i--) {
       const m = chat.messages[i];
-      if (m.role === "assistant" && !m.pending) return m.id;
+      if (m.role === "assistant" && !m.pending && m.content.trim().length > 0) return m.id;
     }
     return null;
   }, [chat.messages]);
@@ -1037,7 +1143,14 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
     );
   }
 
-  const hasMessages = chat.messages.length > 0;
+  const hasMessages = chat.messages.some(
+    (m) =>
+      m.role === "user" ||
+      (m.role === "assistant" &&
+        (m.content.trim().length > 0 ||
+          m.pending ||
+          (m.toolCalls && m.toolCalls.length > 0))),
+  );
   const visionCapable = isVisionCapable(settings);
   const searchCapable = isSearchCapable(settings);
   const cfg = activeProvider(settings);
@@ -1076,7 +1189,15 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
         }}
       />
 
-      <BrowserControlBar />
+      <BrowserControlBar
+        activeTabTitle={page?.title}
+        activeAction={activeBrowserAction ?? undefined}
+        isControlling={!!activeBrowserAction}
+        showBadges={showBadges}
+        onToggleBadges={handleToggleBadges}
+        onStop={cancel}
+        bridgeEnabled={Boolean(settings.bridgeEnabled)}
+      />
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {!hasMessages ? (
           <HeroEmpty
@@ -1329,6 +1450,9 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
           await resetSkill(id);
           setSkills(await loadSkills());
         }}
+        onSkillsReload={async () => {
+          setSkills(await loadSkills());
+        }}
       />
 
       <SkillArgsModal
@@ -1366,6 +1490,22 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
         apiKey={cfg.apiKey}
         baseUrl={cfg.id === "gemini" ? cfg.baseUrl : undefined}
       />
+
+      {safetyModal && (
+        <SafetyConfirmModal
+          actionName={safetyModal.actionName}
+          targetDescription={safetyModal.targetDescription}
+          reason={safetyModal.reason}
+          onConfirm={() => {
+            safetyModal.resolve(true);
+            setSafetyModal(null);
+          }}
+          onDeny={() => {
+            safetyModal.resolve(false);
+            setSafetyModal(null);
+          }}
+        />
+      )}
 
       {/* Footer — context ring + provider + cost */}
       <div className="px-3 py-1 text-[10px] text-soft border-t border-border/60 flex items-center justify-between gap-2">

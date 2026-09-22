@@ -2,7 +2,20 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import type { LucideIcon } from 'lucide-react';
-import { Check, Copy, Edit3, Pin, RefreshCw, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import {
+  Check,
+  Copy,
+  Database,
+  Edit3,
+  Globe,
+  Pin,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Volume2,
+  VolumeX,
+  Wrench,
+} from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import 'highlight.js/styles/github-dark.css';
 
@@ -38,13 +51,27 @@ export default function MessageView({
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
-  if (message.role === 'tool') {
-    return <details className="rounded-lg border border-border px-3 py-2 text-xs text-muted">
-      <summary className="cursor-pointer">Tool result · details</summary>
-      <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words">{message.content}</pre>
-    </details>;
+  // Raw internal tool output or system messages should never be rendered as chat bubbles
+  if (message.role === 'tool' || message.role === 'system') {
+    return null;
   }
-  if (message.role === 'assistant' && !message.pending && !message.content && message.toolCalls?.length) return null;
+
+  // Pending assistant message waiting for its first token is rendered by TypingIndicator
+  if (message.role === 'assistant' && message.pending && !message.content) {
+    return null;
+  }
+
+  // Intermediate assistant message that only invoked tools without text content
+  if (message.role === 'assistant' && !message.content.trim()) {
+    if (message.toolCalls && message.toolCalls.length > 0) {
+      return (
+        <div className="pl-8 -mt-2 mb-1 animate-fade-in">
+          <ToolCallPills toolCalls={message.toolCalls} />
+        </div>
+      );
+    }
+    return null;
+  }
 
   if (message.role === 'user') {
     return (
@@ -130,6 +157,9 @@ export default function MessageView({
     <div className="flex gap-3 animate-fade-in">
       <BrandMark size={22} className="mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
+        {message.toolCalls && message.toolCalls.length > 0 && (
+          <ToolCallPills toolCalls={message.toolCalls} />
+        )}
         <div className={`nb-prose ${message.pending ? 'nb-cursor' : ''}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -199,6 +229,73 @@ export default function MessageView({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ToolCallPills({ toolCalls }: { toolCalls: any[] }) {
+  if (!toolCalls || toolCalls.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 my-1.5">
+      {toolCalls.map((tc, i) => {
+        let label = tc.name;
+        let detail = '';
+        let Icon = Wrench;
+
+        if (tc.name === 'search_knowledge_base') {
+          label = 'Searched knowledge base';
+          detail = tc.args?.query ? `“${tc.args.query}”` : '';
+          Icon = Database;
+        } else if (tc.name === 'search_web') {
+          label = 'Searched web';
+          detail = tc.args?.query ? `“${tc.args.query}”` : '';
+          Icon = Search;
+        } else if (tc.name === 'fetch_url') {
+          label = 'Fetched webpage';
+          detail = tc.args?.url || '';
+          Icon = Globe;
+        } else if (tc.name === 'deep_research') {
+          label = 'Deep research';
+          detail = tc.args?.query ? `“${tc.args.query}”` : '';
+          Icon = Search;
+        } else if (tc.name === 'browser_scan_page') {
+          label = 'Scanned page targets';
+          detail = 'Generated element badges';
+          Icon = Search;
+        } else if (tc.name === 'browser_click') {
+          label = 'Clicked element';
+          detail = tc.args?.targetId || '';
+          Icon = Wrench;
+        } else if (tc.name === 'browser_type') {
+          label = 'Typed into';
+          detail = tc.args?.targetId ? `${tc.args.targetId}: “${tc.args.text}”` : tc.args?.text || '';
+          Icon = Edit3;
+        } else if (tc.name === 'browser_select') {
+          label = 'Selected option';
+          detail = tc.args?.value ? `“${tc.args.value}”` : '';
+          Icon = Check;
+        } else if (tc.name === 'browser_scroll') {
+          label = 'Scrolled page';
+          detail = tc.args?.direction || 'down';
+          Icon = Globe;
+        } else if (tc.name === 'browser_navigate') {
+          label = 'Navigated to';
+          detail = tc.args?.url || '';
+          Icon = Globe;
+        }
+
+        return (
+          <div
+            key={tc.id || i}
+            className="inline-flex items-center gap-1.5 max-w-full px-2.5 py-1 rounded-full text-[11.5px] bg-surface border border-border text-muted"
+          >
+            <Icon size={11} className="text-accent shrink-0" />
+            <span className="font-medium text-ink">{label}</span>
+            {detail && <span className="truncate max-w-[200px] opacity-75">{detail}</span>}
+          </div>
+        );
+      })}
     </div>
   );
 }

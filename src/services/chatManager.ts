@@ -111,9 +111,12 @@ function deriveTitle(input: string): string {
 }
 
 export function exportToMarkdown(chat: Chat): string {
+  const visibleMessages = chat.messages.filter(
+    (m) => m.role === 'user' || (m.role === 'assistant' && m.content.trim().length > 0)
+  );
   const lines: string[] = [`# ${chat.title}`, ''];
-  lines.push(`> Exported ${new Date().toISOString()} · ${chat.messages.length} messages`, '');
-  for (const m of chat.messages) {
+  lines.push(`> Exported ${new Date().toISOString()} · ${visibleMessages.length} messages`, '');
+  for (const m of visibleMessages) {
     const head = m.role === 'user' ? '**You**' : '**Nerdbot**';
     lines.push(head, '', m.content, '');
     if (m.attachments?.length) {

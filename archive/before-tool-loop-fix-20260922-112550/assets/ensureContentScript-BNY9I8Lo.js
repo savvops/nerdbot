@@ -1,0 +1,1 @@
+async function n(t){var r;if(typeof chrome>"u"||!((r=chrome.tabs)!=null&&r.sendMessage))return!1;try{const e=await chrome.tabs.sendMessage(t,{type:"NERDBOT_PING"});if(e!=null&&e.ok)return!0}catch{}try{return await chrome.scripting.executeScript({target:{tabId:t},files:["content.js"]}),!0}catch{return!1}}export{n as e};

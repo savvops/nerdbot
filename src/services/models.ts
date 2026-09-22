@@ -101,10 +101,11 @@ async function fetchRawModels(cfg: ProviderConfig): Promise<ModelInfo[]> {
     case "openai":
     case "nvidia":
     case "lmstudio":
-    case "ollama": {
-      const res = await fetch(`${cfg.baseUrl}/models`, {
-        headers: { Authorization: `Bearer ${cfg.apiKey}` },
-      });
+    case "ollama":
+    case "custom_agent": {
+      const headers: Record<string, string> = {};
+      if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+      const res = await fetch(`${cfg.baseUrl}/models`, { headers });
       if (!res.ok) throw Object.assign(new Error("http"), { status: res.status });
       const json = await res.json();
       let ids: string[] = (json.data ?? [])
@@ -313,6 +314,12 @@ export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
   lmstudio: fallbackList("lmstudio", []),
   ollama: fallbackList("ollama", []),
   anthropic: fallbackList("anthropic", ["claude-opus-4-5"]),
+  custom_agent: fallbackList("custom_agent", [
+    "hermes-3",
+    "hermes-3-llama-3.1-8b",
+    "sao-agent",
+    "qwen2.5-coder",
+  ]),
 };
 
 export const FALLBACK_MODEL_CATALOGS: Record<ProviderId, ModelCatalog> = Object.fromEntries(

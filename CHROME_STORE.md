@@ -41,28 +41,17 @@ justifications. Suggested wording:
 | Permission | Justification |
 |---|---|
 | `storage` | Persists user settings, chat history, personas, and the local RAG knowledge base on-device. |
-| `identity` | Opens OpenRouter's sign-in/authorization window and securely returns the OAuth callback to Nerdbot, so users never need to copy or paste an API key. |
-| `activeTab` / `tabs` | Reads the title/URL of open tabs so the user can share a tab's content with the assistant. |
-| `scripting` | Injects the page reader and quick-chat overlay on demand into the tab the user is acting on (no persistent all-sites content script). |
-| `sidePanel` | The entire UI lives in Chrome's side panel. |
-| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, read other tabs, use a self-hosted/DuckDuckGo search backend, or explicitly check documented localhost AI endpoints. Not requested at install; the extension shows no all-sites warning on install. |
+| `identity` | Opens OpenRouter's sign-in/authorization window and securely returns the OAuth callback to Nerdbot, and supports optional cloud sync sign-in. |
+| `activeTab` / `tabs` | Reads the title/URL of open tabs and automates interactions on the tab the user explicitly selects. |
+| `scripting` | Injects the DOM reader, element badge overlay, and action executor on demand into the tab the user is actively working with. |
+| `sidePanel` | The entire assistant UI lives in Chrome's native side panel. |
+| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, automate a web task, or use sovereign search backends. Not requested at install; the extension shows no all-sites warning on install. |
 
 Also on the Privacy tab:
 
-- **Single purpose**: "A browser side-panel AI assistant that answers
-  questions, optionally using the content of pages the user shares."
-- **Remote code**: answer **No** — all JS is bundled and injected on demand
-  (no persistent all-sites content script); the extension calls
-  LLM HTTP APIs (Gemini, OpenAI, OpenRouter, Anthropic, LM Studio, Ollama)
-  but does not load or execute remote code.
-- **Data usage**: page content and user prompts are sent to the configured LLM
-  provider. Optional account sign-in also sends email/authentication data and
-  synchronized text conversations and pins to the developer's Convex backend.
-  Provider keys remain device-local; attachments are not cloud-synced in this
-  preview. Update the Store disclosures before publishing this build. You must
-  certify the data-use disclosures and
-  should link a privacy policy URL (a simple GitHub Pages / repo
-  PRIVACY.md link is acceptable).
+- **Single purpose**: "An autonomous AI browser assistant and side panel that helps users browse, answers questions using page context, automates web interactions (clicking, form filling, searching), and optionally synchronizes conversations across devices."
+- **Remote code**: answer **No** — all JS is bundled into the extension and injected on demand (no external script loading); the extension connects to user-configured LLM provider APIs (Gemini, OpenAI, OpenRouter, Anthropic, LM Studio, Ollama).
+- **Data usage**: prompts and page context are sent directly to the user's chosen LLM provider using their own API key. Optional account sign-in synchronizes text conversations and pins to the Convex cloud backend. Provider keys remain strictly device-local. You must certify the data-use disclosures and link your PRIVACY.md.
 
 ## 5. Submit
 

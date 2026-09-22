@@ -36,6 +36,9 @@ chrome.commands?.onCommand?.addListener(async (command) => {
   }
 });
 
+const PROTECTED_URL_REGEX =
+  /^(chrome|chrome-extension|edge|about|devtools|view-source):|^https:\/\/chromewebstore\.google\.com\//i;
+
 type Msg =
   | { type: 'BROWSER_CONTROL'; payload: Record<string, unknown> }
   | { type: 'GET_PAGE_CONTEXT' }
@@ -44,7 +47,15 @@ type Msg =
   | { type: 'LIST_TABS' }
   | { type: 'GET_TAB_TEXT'; payload: { tabId: number } }
   | { type: 'QUICK_CHAT_QUEUE'; payload: { text: string } }
-  | { type: 'PING' };
+  | { type: 'GET_SESSION_COOKIES' }
+  | { type: 'PING' }
+  | {
+      type: 'EXECUTE_BROWSER_ACTION';
+      payload: {
+        action: 'scan_page' | 'click' | 'type' | 'select' | 'scroll' | 'navigate' | 'clear_overlays';
+        args?: any;
+      };
+    };
 
 chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
   (async () => {
@@ -56,6 +67,34 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
       }
       if (message.type === 'PING') {
         sendResponse({ ok: true });
+        return;
+      }
+      if (message.type === 'GET_SESSION_COOKIES') {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.url) {
+          sendResponse({ ok: false, error: 'no_active_tab' });
+          return;
+        }
+        try {
+          const cookies = await chrome.cookies.getAll({ url: tab.url });
+          sendResponse({
+            ok: true,
+            data: {
+              url: tab.url,
+              title: tab.title || '',
+              cookies: cookies.map((c) => ({
+                name: c.name,
+                value: c.value,
+                domain: c.domain,
+                path: c.path,
+                secure: c.secure,
+                httpOnly: c.httpOnly,
+              })),
+            },
+          });
+        } catch (err: any) {
+          sendResponse({ ok: false, error: err.message || 'failed_to_get_cookies' });
+        }
         return;
       }
       if (message.type === 'QUICK_CHAT_QUEUE') {
@@ -113,6 +152,72 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
             },
           });
         }
+        return;
+      }
+      if (message.type === 'EXECUTE_BROWSER_ACTION') {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id || !tab.url) {
+          sendResponse({ ok: false, error: 'No active browser tab found.' });
+          return;
+        }
+        if (PROTECTED_URL_REGEX.test(tab.url)) {
+          sendResponse({
+            ok: false,
+            error: `Cannot automate protected browser page (${tab.url}). Please open a normal webpage.`,
+          });
+          return;
+        }
+
+        const { action, args = {} } = message.payload;
+
+        if (action === 'navigate') {
+          if (!args.url) {
+            sendResponse({ ok: false, error: 'URL is required for navigate.' });
+            return;
+          }
+          if (PROTECTED_URL_REGEX.test(args.url)) {
+            sendResponse({ ok: false, error: 'Cannot navigate to protected browser URLs.' });
+            return;
+          }
+          await chrome.tabs.update(tab.id, { url: args.url });
+          sendResponse({ ok: true, message: `Navigated to ${args.url}` });
+          return;
+        }
+
+        await ensureContentScript(tab.id);
+
+        let contentMsg: any;
+        if (action === 'scan_page') {
+          contentMsg = { type: 'SCAN_PAGE_ELEMENTS', showOverlays: args.showOverlays !== false };
+        } else if (action === 'click') {
+          contentMsg = { type: 'BROWSER_CLICK', identifier: args.targetId || args.identifier };
+        } else if (action === 'type') {
+          contentMsg = {
+            type: 'BROWSER_TYPE',
+            identifier: args.targetId || args.identifier,
+            text: args.text,
+            clearFirst: args.clearFirst,
+            pressEnter: args.pressEnter,
+          };
+        } else if (action === 'select') {
+          contentMsg = {
+            type: 'BROWSER_SELECT',
+            identifier: args.targetId || args.identifier,
+            value: args.value,
+          };
+        } else if (action === 'scroll') {
+          contentMsg = { type: 'BROWSER_SCROLL', direction: args.direction || 'down', amount: args.amount };
+        } else if (action === 'clear_overlays') {
+          contentMsg = { type: 'CLEAR_OVERLAYS' };
+        }
+
+        if (!contentMsg) {
+          sendResponse({ ok: false, error: `Unknown browser action: ${action}` });
+          return;
+        }
+
+        const reply = await chrome.tabs.sendMessage(tab.id, contentMsg);
+        sendResponse(reply);
         return;
       }
       sendResponse({ ok: false, error: 'unknown_message' });

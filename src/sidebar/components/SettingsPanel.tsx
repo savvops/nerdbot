@@ -10,14 +10,19 @@ import {
   Pencil,
   Bug,
   RefreshCw,
+  Info,
+  Server,
+  RotateCcw,
 } from "lucide-react";
 import type {
+  CustomAgentEndpoint,
   ProviderId,
   SearchProviderId,
   Settings,
   Soul,
 } from "../../services/types";
 import {
+  DEFAULT_CUSTOM_AGENTS,
   PROVIDER_ACCESS_LABELS,
   PROVIDER_DOCS,
   PROVIDER_LABELS,
@@ -73,6 +78,7 @@ const PROVIDER_ORDER: ProviderId[] = [
   "anthropic",
   "lmstudio",
   "ollama",
+  "custom_agent",
 ];
 const SEARCH_PROVIDER_ORDER: SearchProviderId[] = [
   "jina",
@@ -320,6 +326,60 @@ export default function SettingsPanel({
     });
   };
 
+  const customAgents =
+    settings.customAgents && settings.customAgents.length > 0
+      ? settings.customAgents
+      : DEFAULT_CUSTOM_AGENTS;
+  const activeAgentId = settings.activeCustomAgentId || customAgents[0]?.id;
+  const activeAgent =
+    customAgents.find((a) => a.id === activeAgentId) || customAgents[0];
+
+  const updateActiveAgent = (patch: Partial<CustomAgentEndpoint>) => {
+    const updated = customAgents.map((a) =>
+      a.id === activeAgent?.id ? { ...a, ...patch } : a,
+    );
+    onChange({
+      ...settings,
+      customAgents: updated,
+    });
+  };
+
+  const addCustomAgent = () => {
+    const newId = `agent-${Date.now().toString(36)}`;
+    const newAgent: CustomAgentEndpoint = {
+      id: newId,
+      name: `Agent ${customAgents.length + 1}`,
+      baseUrl: "http://localhost:8000/v1",
+      apiKey: "",
+      model: "default",
+      description: "Custom Node",
+    };
+    onChange({
+      ...settings,
+      customAgents: [...customAgents, newAgent],
+      activeCustomAgentId: newId,
+    });
+  };
+
+  const deleteCustomAgent = (id: string) => {
+    if (customAgents.length <= 1) return;
+    const remaining = customAgents.filter((a) => a.id !== id);
+    onChange({
+      ...settings,
+      customAgents: remaining,
+      activeCustomAgentId:
+        activeAgentId === id ? remaining[0].id : activeAgentId,
+    });
+  };
+
+  const resetDefaultAgents = () => {
+    onChange({
+      ...settings,
+      customAgents: DEFAULT_CUSTOM_AGENTS,
+      activeCustomAgentId: DEFAULT_CUSTOM_AGENTS[0].id,
+    });
+  };
+
   const updateSearch = (patch: Partial<Settings["search"]>) => {
     onChange({
       ...settings,
@@ -378,7 +438,7 @@ export default function SettingsPanel({
                     // origin; without the host grant those requests are
                     // CORS-blocked unless the server sets headers. Ask now,
                     // while we still have this click's gesture.
-                    if (id === "lmstudio" || id === "ollama") {
+                    if (id === "lmstudio" || id === "ollama" || id === "custom_agent") {
                       void ensureLocalAiAccess();
                     }
                   }}
@@ -397,193 +457,343 @@ export default function SettingsPanel({
             </div>
           </Field>
 
-          <div className="rounded-xl border border-border bg-bg p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[12.5px] font-medium text-ink">Provider health</div>
-                <div className={`mt-0.5 text-[10.5px] ${providerHealth === "ready" ? "text-accent" : "text-soft"}`}>
-                  {providerHealthMessage || (provider.id === 'nvidia' ? 'Checks model access with a one-token test request.' : "Run a check before relying on this provider.")}
+          {settings.activeProvider === "custom_agent" ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-accent/30 bg-accent/10 p-3 text-[12px] text-ink/90 flex gap-2.5 items-start">
+                <Info size={16} className="text-accent shrink-0 mt-0.5" />
+                <div className="space-y-1 leading-relaxed">
+                  <div className="font-semibold text-accent">Personal & Custom Agents</div>
+                  <div>
+                    Connect sovereign personal agents, remote agent servers, or multi-agent swarms (e.g. <strong>Hermes</strong> running on your Nukbox, Spine, or Legion nodes, <strong>OpenClaw</strong>, <strong>Eve</strong>, <strong>SAO Core</strong> on port 4177, or Cloudflare Zero Trust Tunnels).
+                  </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={checkProviderHealth}
-                disabled={providerHealth === "checking"}
-                className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-ink hover:bg-elevated disabled:opacity-50"
-              >
-                {providerHealth === "checking" ? "Checking…" : "Check connection"}
-              </button>
-            </div>
-            <div className="mt-3 border-t border-border pt-3">
-              <button
-                type="button"
-                onClick={scanLocalProviders}
-                disabled={localScanBusy}
-                className="text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
-              >
-                {localScanBusy ? "Checking localhost…" : "Detect Ollama or LM Studio"}
-              </button>
-              <div className="mt-1 text-[10px] leading-relaxed text-soft">
-                Runs only when clicked and checks the documented default localhost endpoints.
-              </div>
-              {localScanResults.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {localScanResults.map((result) => (
-                    <div key={result.id} className="flex items-center justify-between gap-3 text-[10.5px]">
-                      <span className="text-ink">{PROVIDER_LABELS[result.id]}</span>
-                      <span className={result.reachable ? "text-accent" : "text-soft"}>{result.message}</span>
-                    </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-medium text-ink flex items-center gap-1.5">
+                    <Server size={13} className="text-accent" /> Active Agent Node
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={resetDefaultAgents}
+                      title="Reset default fleet presets"
+                      className="text-[11px] text-soft hover:text-ink flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-elevated"
+                    >
+                      <RotateCcw size={11} /> Reset Presets
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addCustomAgent}
+                      className="text-[11px] text-accent font-medium hover:underline flex items-center gap-0.5"
+                    >
+                      <Plus size={12} /> Add Agent
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  {customAgents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => onChange({ ...settings, activeCustomAgentId: agent.id })}
+                      className={`px-2.5 py-2 text-[12px] rounded-lg border transition-all text-left flex flex-col gap-0.5 ${
+                        activeAgent?.id === agent.id
+                          ? "bg-accent/15 border-accent/50 text-ink shadow-sm"
+                          : "bg-bg border-border text-muted hover:text-ink"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-semibold truncate">{agent.name}</span>
+                        {activeAgent?.id === agent.id && <Check size={12} className="text-accent shrink-0" />}
+                      </div>
+                      <span className="text-[10px] text-soft truncate">{agent.description || agent.baseUrl}</span>
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          <Field
-            label="API key"
-            hint={
-              <a
-                href={PROVIDER_DOCS[provider.id]}
-                target="_blank"
-                rel="noreferrer"
-                className="text-accent hover:underline inline-flex items-center gap-0.5"
-              >
-                Get key <ExternalLink size={10} />
-              </a>
-            }
-          >
-            <div className="flex items-center gap-1 bg-bg border border-border rounded-lg px-2.5 focus-within:border-accent/50">
-              <input
-                type={showKey ? "text" : "password"}
-                value={provider.apiKey}
-                onChange={(e) => updateProvider({ apiKey: e.target.value })}
-                placeholder={
-                  provider.id === "lmstudio" || provider.id === "ollama"
-                    ? "Not required"
-                    : "sk-…"
+              <div className="p-3 bg-bg border border-border rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11.5px] font-semibold text-accent uppercase tracking-wider">Configure Node</span>
+                  {customAgents.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => deleteCustomAgent(activeAgent.id)}
+                      className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1"
+                      title="Delete this agent node"
+                    >
+                      <Trash2 size={11} /> Remove
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Agent Name">
+                    <input
+                      value={activeAgent?.name || ""}
+                      onChange={(e) => updateActiveAgent({ name: e.target.value })}
+                      placeholder="e.g. Hermes Nukbox"
+                      className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none"
+                    />
+                  </Field>
+                  <Field label="Node Note">
+                    <input
+                      value={activeAgent?.description || ""}
+                      onChange={(e) => updateActiveAgent({ description: e.target.value })}
+                      placeholder="e.g. RTX 3060 Node"
+                      className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Base URL">
+                  <input
+                    value={activeAgent?.baseUrl || ""}
+                    onChange={(e) => updateActiveAgent({ baseUrl: e.target.value })}
+                    placeholder="http://localhost:8000/v1"
+                    className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none"
+                  />
+                  <div className="text-[10.5px] text-soft mt-1">
+                    Local agent server, LAN IP (e.g. nukbox.local), or Cloudflare Tunnel URL.
+                  </div>
+                </Field>
+
+                <Field label="API Key / Bearer Token">
+                  <div className="flex items-center gap-1 bg-surface border border-border rounded-lg px-2.5 focus-within:border-accent/50">
+                    <input
+                      type={showKey ? "text" : "password"}
+                      value={activeAgent?.apiKey || ""}
+                      onChange={(e) => updateActiveAgent({ apiKey: e.target.value })}
+                      placeholder="Optional for sovereign/local agents"
+                      className="flex-1 py-1.5 text-[12.5px] outline-none bg-transparent"
+                    />
+                    <button
+                      onClick={() => setShowKey((v) => !v)}
+                      className="p-1 text-muted hover:text-ink"
+                      title={showKey ? "Hide" : "Show"}
+                    >
+                      {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  </div>
+                </Field>
+
+                <Field label="Model / Agent ID">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={activeAgent?.model || ""}
+                      onChange={(e) => updateActiveAgent({ model: e.target.value })}
+                      placeholder="e.g. hermes-3, default, sao-agent"
+                      className="flex-1 bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={refreshModels}
+                      disabled={modelsLoading}
+                      className="p-2 text-muted hover:text-ink rounded bg-surface border border-border"
+                      title="Check agent connection & refresh models"
+                    >
+                      <RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />
+                    </button>
+                  </div>
+                </Field>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-border bg-bg p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[12.5px] font-medium text-ink">Provider health</div>
+                    <div className={`mt-0.5 text-[10.5px] ${providerHealth === "ready" ? "text-accent" : "text-soft"}`}>
+                      {providerHealthMessage || (provider.id === 'nvidia' ? 'Checks model access with a one-token test request.' : "Run a check before relying on this provider.")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={checkProviderHealth}
+                    disabled={providerHealth === "checking"}
+                    className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-ink hover:bg-elevated disabled:opacity-50"
+                  >
+                    {providerHealth === "checking" ? "Checking…" : "Check connection"}
+                  </button>
+                </div>
+                <div className="mt-3 border-t border-border pt-3">
+                  <button
+                    type="button"
+                    onClick={scanLocalProviders}
+                    disabled={localScanBusy}
+                    className="text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
+                  >
+                    {localScanBusy ? "Checking localhost…" : "Detect Ollama or LM Studio"}
+                  </button>
+                  <div className="mt-1 text-[10px] leading-relaxed text-soft">
+                    Runs only when clicked and checks the documented default localhost endpoints.
+                  </div>
+                  {localScanResults.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {localScanResults.map((result) => (
+                        <div key={result.id} className="flex items-center justify-between gap-3 text-[10.5px]">
+                          <span className="text-ink">{PROVIDER_LABELS[result.id]}</span>
+                          <span className={result.reachable ? "text-accent" : "text-soft"}>{result.message}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Field
+                label="API key"
+                hint={
+                  <a
+                    href={PROVIDER_DOCS[provider.id]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent hover:underline inline-flex items-center gap-0.5"
+                  >
+                    Get key <ExternalLink size={10} />
+                  </a>
                 }
-                className="flex-1 py-2 text-[13px] outline-none"
-              />
-              <button
-                onClick={() => setShowKey((v) => !v)}
-                className="p-1 text-muted hover:text-ink"
-                title={showKey ? "Hide" : "Show"}
               >
-                {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
-              </button>
-            </div>
-          </Field>
-
-          <Field label="Base URL">
-            <input
-              value={provider.baseUrl}
-              onChange={(e) => updateProvider({ baseUrl: e.target.value })}
-              className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[13px] outline-none"
-            />
-            {(provider.id === "lmstudio" || provider.id === "ollama") && (
-              <div className="text-[10.5px] text-soft mt-1">
-                If requests fail with a CORS error, enable CORS in LM Studio's
-                server settings or set{" "}
-                <code className="text-ink/80">OLLAMA_ORIGINS</code> — or grant
-                site access.
-              </div>
-            )}
-          </Field>
-
-          {provider.apiKey === 'managed-by-pc' && <p className="text-xs text-muted">Using this provider's key from your PC extension. The key stays on the PC. Replace this value to use a separate mobile key.</p>}
-
-          <JevExperiment settings={settings} onChange={onChange} />
-
-          <div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Fast model">
-                <ModelSelect
-                  value={provider.fastModel}
-                  models={modelList?.models ?? []}
-                  loading={modelsLoading}
-                  onChange={(id) => updateProvider({ fastModel: id })}
-                />
+                <div className="flex items-center gap-1 bg-bg border border-border rounded-lg px-2.5 focus-within:border-accent/50">
+                  <input
+                    type={showKey ? "text" : "password"}
+                    value={provider.apiKey}
+                    onChange={(e) => updateProvider({ apiKey: e.target.value })}
+                    placeholder={
+                      provider.id === "lmstudio" || provider.id === "ollama"
+                        ? "Not required"
+                        : "sk-…"
+                    }
+                    className="flex-1 py-2 text-[13px] outline-none"
+                  />
+                  <button
+                    onClick={() => setShowKey((v) => !v)}
+                    className="p-1 text-muted hover:text-ink"
+                    title={showKey ? "Hide" : "Show"}
+                  >
+                    {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                </div>
               </Field>
-              <Field label="Quality model">
-                <ModelSelect
-                  value={provider.qualityModel}
-                  models={modelList?.models ?? []}
-                  loading={modelsLoading}
-                  onChange={(id) => updateProvider({ qualityModel: id })}
+
+              <Field label="Base URL">
+                <input
+                  value={provider.baseUrl}
+                  onChange={(e) => updateProvider({ baseUrl: e.target.value })}
+                  className="w-full bg-bg border border-border focus-within:border-accent/50 rounded-lg px-3 py-2 text-[13px] outline-none"
                 />
+                {(provider.id === "lmstudio" || provider.id === "ollama") && (
+                  <div className="text-[10.5px] text-soft mt-1">
+                    If requests fail with a CORS error, enable CORS in LM Studio's
+                    server settings or set{" "}
+                    <code className="text-ink/80">OLLAMA_ORIGINS</code> — or grant
+                    site access.
+                  </div>
+                )}
               </Field>
-            </div>
-            <div className="flex items-center justify-between mt-1.5">
-              <span className="text-[10.5px] text-soft">
-                {modelsLoading
-                  ? "Loading models…"
-                  : modelList
-                    ? `${modelList.models.length} chat · ${modelList.imageModels.length} image · ${modelList.audioModels.length} audio`
-                    : "Models"}
-              </span>
-              <button
-                type="button"
-                onClick={refreshModels}
-                disabled={modelsLoading}
-                className="p-1 -mr-1 text-muted hover:text-ink rounded disabled:opacity-40"
-                title="Refresh model list"
-              >
-                <RefreshCw
-                  size={12}
-                  className={modelsLoading ? "animate-spin" : ""}
-                />
-              </button>
-            </div>
-            {modelList?.source === "fallback" && modelList.error && (
-              <div
-                className="text-[10.5px] text-soft mt-0.5"
-                title={modelList.error}
-              >
-                Couldn't fetch live models — showing known ones
+
+              {provider.apiKey === 'managed-by-pc' && (
+                <p className="text-xs text-muted">Using this provider's key from your PC extension. The key stays on the PC. Replace this value to use a separate mobile key.</p>
+              )}
+
+              <JevExperiment settings={settings} onChange={onChange} />
+
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Fast model">
+                    <ModelSelect
+                      value={provider.fastModel}
+                      models={modelList?.models ?? []}
+                      loading={modelsLoading}
+                      onChange={(id) => updateProvider({ fastModel: id })}
+                    />
+                  </Field>
+                  <Field label="Quality model">
+                    <ModelSelect
+                      value={provider.qualityModel}
+                      models={modelList?.models ?? []}
+                      loading={modelsLoading}
+                      onChange={(id) => updateProvider({ qualityModel: id })}
+                    />
+                  </Field>
+                </div>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-[10.5px] text-soft">
+                    {modelsLoading
+                      ? "Loading models…"
+                      : modelList
+                        ? `${modelList.models.length} chat · ${modelList.imageModels.length} image · ${modelList.audioModels.length} audio`
+                        : "Models"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={refreshModels}
+                    disabled={modelsLoading}
+                    className="p-1 -mr-1 text-muted hover:text-ink rounded disabled:opacity-40"
+                    title="Refresh model list"
+                  >
+                    <RefreshCw
+                      size={12}
+                      className={modelsLoading ? "animate-spin" : ""}
+                    />
+                  </button>
+                </div>
+                {modelList?.source === "fallback" && modelList.error && (
+                  <div
+                    className="text-[10.5px] text-soft mt-0.5"
+                    title={modelList.error}
+                  >
+                    Couldn't fetch live models — showing known ones
+                  </div>
+                )}
+                <div className="mt-1 text-[10.5px] leading-relaxed text-soft">
+                  {PROVIDER_RECOMMENDATIONS[provider.id]}
+                </div>
               </div>
-            )}
-            <div className="mt-1 text-[10.5px] leading-relaxed text-soft">
-              {PROVIDER_RECOMMENDATIONS[provider.id]}
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Fast image model">
-              <ModelSelect
-                value={provider.fastImageModel || ""}
-                models={modelList?.imageModels ?? []}
-                loading={modelsLoading}
-                onChange={(id) => updateProvider({ fastImageModel: id })}
-              />
-            </Field>
-            <Field label="Quality image model">
-              <ModelSelect
-                value={provider.qualityImageModel || ""}
-                models={modelList?.imageModels ?? []}
-                loading={modelsLoading}
-                onChange={(id) => updateProvider({ qualityImageModel: id })}
-              />
-            </Field>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Fast image model">
+                  <ModelSelect
+                    value={provider.fastImageModel || ""}
+                    models={modelList?.imageModels ?? []}
+                    loading={modelsLoading}
+                    onChange={(id) => updateProvider({ fastImageModel: id })}
+                  />
+                </Field>
+                <Field label="Quality image model">
+                  <ModelSelect
+                    value={provider.qualityImageModel || ""}
+                    models={modelList?.imageModels ?? []}
+                    loading={modelsLoading}
+                    onChange={(id) => updateProvider({ qualityImageModel: id })}
+                  />
+                </Field>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Fast audio model">
-              <ModelSelect
-                value={provider.fastAudioModel || ""}
-                models={modelList?.audioModels ?? []}
-                loading={modelsLoading}
-                onChange={(id) => updateProvider({ fastAudioModel: id })}
-              />
-            </Field>
-            <Field label="Quality audio model">
-              <ModelSelect
-                value={provider.qualityAudioModel || ""}
-                models={modelList?.audioModels ?? []}
-                loading={modelsLoading}
-                onChange={(id) => updateProvider({ qualityAudioModel: id })}
-              />
-            </Field>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Fast audio model">
+                  <ModelSelect
+                    value={provider.fastAudioModel || ""}
+                    models={modelList?.audioModels ?? []}
+                    loading={modelsLoading}
+                    onChange={(id) => updateProvider({ fastAudioModel: id })}
+                  />
+                </Field>
+                <Field label="Quality audio model">
+                  <ModelSelect
+                    value={provider.qualityAudioModel || ""}
+                    models={modelList?.audioModels ?? []}
+                    loading={modelsLoading}
+                    onChange={(id) => updateProvider({ qualityAudioModel: id })}
+                  />
+                </Field>
+              </div>
+            </>
+          )}
 
           {provider.id === "gemini" && (
             <Field label="Embedding model (for Knowledge Base / projects)">
@@ -675,18 +885,56 @@ export default function SettingsPanel({
             />
           </Field>
 
-          <Field label={`Max tokens · ${settings.maxTokens}`}>
-            <input
-              type="range"
-              min={256}
-              max={16000}
-              step={128}
-              value={settings.maxTokens}
-              onChange={(e) =>
-                onChange({ ...settings, maxTokens: Number(e.target.value) })
-              }
-              className="w-full accent-[rgb(var(--nb-accent))]"
-            />
+          <Field
+            label="Max Output Tokens"
+            hint={
+              <span className="font-mono text-xs text-text-primary">
+                {settings.maxTokens.toLocaleString()}
+              </span>
+            }
+          >
+            <div className="space-y-2">
+              <input
+                type="range"
+                min={256}
+                max={128000}
+                step={256}
+                value={Math.min(settings.maxTokens, 128000)}
+                onChange={(e) =>
+                  onChange({ ...settings, maxTokens: Number(e.target.value) })
+                }
+                className="w-full accent-[rgb(var(--nb-accent))]"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[2048, 4096, 8192, 16384, 32768, 65536, 128000].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => onChange({ ...settings, maxTokens: val })}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                      settings.maxTokens === val
+                        ? "bg-accent/15 border-accent text-accent font-semibold"
+                        : "border-border text-muted hover:text-text-primary hover:bg-hover"
+                    }`}
+                  >
+                    {val >= 1000 ? `${Math.round(val / 1000)}k` : val}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min={1}
+                  max={1000000}
+                  value={settings.maxTokens}
+                  onChange={(e) =>
+                    onChange({
+                      ...settings,
+                      maxTokens: Math.max(1, Number(e.target.value) || 1),
+                    })
+                  }
+                  className="ml-auto w-20 px-2 py-0.5 text-right font-mono text-xs rounded border border-border bg-input-bg text-text-primary focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
           </Field>
 
           {/* ── Web Search ── */}
