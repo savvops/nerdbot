@@ -39,25 +39,16 @@ justifications. Suggested wording:
 | Permission | Justification |
 |---|---|
 | `storage` | Persists user settings, chat history, personas, and the local RAG knowledge base on-device. |
-| `activeTab` / `tabs` | Reads the title/URL of open tabs so the user can share a tab's content with the assistant. |
-| `scripting` | Injects the page reader and quick-chat overlay on demand into the tab the user is acting on (no persistent all-sites content script). |
-| `sidePanel` | The entire UI lives in Chrome's side panel. |
-| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, read other tabs, or use a self-hosted/DuckDuckGo search backend. Not requested at install; the extension shows no all-sites warning on install. |
+| `activeTab` / `tabs` | Reads the title/URL of open tabs and automates interactions on the tab the user explicitly selects. |
+| `scripting` | Injects the DOM reader, element badge overlay, and action executor on demand into the tab the user is actively working with. |
+| `sidePanel` | The entire assistant UI lives in Chrome's native side panel. |
+| Optional host permission `<all_urls>` | Requested in-context only when the user chooses to share page content, automate a web task, or use sovereign search backends. Not requested at install; the extension shows no all-sites warning on install. |
 
 Also on the Privacy tab:
 
-- **Single purpose**: "A browser side-panel AI assistant that answers
-  questions, optionally using the content of pages the user shares."
-- **Remote code**: answer **No** — all JS is bundled and injected on demand
-  (no persistent all-sites content script); the extension calls
-  LLM HTTP APIs (Gemini, OpenAI, OpenRouter, Anthropic, LM Studio, Ollama)
-  but does not load or execute remote code.
-- **Data usage**: page content and user prompts are sent to the LLM provider
-  the user configures, using the user's own API key. Nothing is sent to any
-  server operated by the developer. Chat history and keys stay in
-  `chrome.storage.local`. You must certify the data-use disclosures and
-  should link a privacy policy URL (a simple GitHub Pages / repo
-  PRIVACY.md link is acceptable).
+- **Single purpose**: "An autonomous AI browser assistant and side panel that helps users browse, answers questions using page context, and automates web interactions (clicking, form filling, searching) on the user's command."
+- **Remote code**: answer **No** — all JS is bundled into the extension and injected on demand (no external script loading); the extension connects to user-configured LLM provider APIs (Gemini, OpenAI, OpenRouter, Anthropic, LM Studio, Ollama).
+- **Data usage**: prompts and page context are sent directly to the user's chosen LLM provider using their own API key. Nothing is ever sent to developer-operated servers. All keys, chat history, and local RAG databases remain strictly on `chrome.storage.local`. You must certify the data-use disclosures and link your PRIVACY.md.
 
 ## 5. Submit
 

@@ -17,6 +17,9 @@ import ContextRing from "./components/ContextRing";
 import ProjectModal from "./components/ProjectModal";
 import BugReportModal from "./components/BugReportModal";
 import OnboardingModal from "./components/OnboardingModal";
+import BrowserControlBar from "./components/BrowserControlBar";
+import SafetyConfirmModal from "./components/SafetyConfirmModal";
+import { assessActionRisk } from "../services/reflex";
 
 import { executeTool } from "../services/tools";
 import {
@@ -172,6 +175,14 @@ export default function App() {
   const [multiTabOpen, setMultiTabOpen] = useState(false);
   const [editing, setEditing] = useState<Message | null>(null);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
+  const [activeBrowserAction, setActiveBrowserAction] = useState<string | null>(null);
+  const [showBadges, setShowBadges] = useState(false);
+  const [safetyModal, setSafetyModal] = useState<{
+    actionName: string;
+    targetDescription: string;
+    reason: string;
+    resolve: (approved: boolean) => void;
+  } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -180,6 +191,16 @@ export default function App() {
 
   // Bootstrap
   useEffect(() => {
+    // Clear any visual overlays from web pages on start
+    if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+      chrome.runtime
+        .sendMessage({
+          type: "EXECUTE_BROWSER_ACTION",
+          payload: { action: "clear_overlays" },
+        })
+        .catch(() => undefined);
+    }
+
     (async () => {
       const [s, c, h, p, sk, so] = await Promise.all([
         loadSettings(),
@@ -779,12 +800,53 @@ export default function App() {
             : settings.providers[settings.activeProvider];
           const toolResults = await Promise.all(
             toolCallsList.map(async (tc) => {
+              if (tc.name.startsWith("browser_")) {
+                let actionText = "Running browser action...";
+                if (tc.name === "browser_scan_page") actionText = "Scanning page elements...";
+                else if (tc.name === "browser_click") actionText = `Clicking ${tc.args.targetId}...`;
+                else if (tc.name === "browser_type") actionText = `Typing into ${tc.args.targetId}...`;
+                else if (tc.name === "browser_navigate") actionText = `Navigating to ${tc.args.url}...`;
+                else if (tc.name === "browser_scroll") actionText = `Scrolling ${tc.args.direction || "down"}...`;
+                else if (tc.name === "browser_select") actionText = `Selecting ${tc.args.value}...`;
+                setActiveBrowserAction(actionText);
+
+                if (tc.name === "browser_click" || tc.name === "browser_type") {
+                  const risk = assessActionRisk(
+                    tc.name === "browser_click" ? "click" : "type",
+                    tc.args.targetId || "",
+                    tc.args.text || ""
+                  );
+                  if (risk.requiresConfirmation) {
+                    const approved = await requestSafetyApproval(
+                      tc.name,
+                      tc.args.targetId || "element",
+                      risk.reason
+                    );
+                    if (!approved) {
+                      setActiveBrowserAction(null);
+                      return {
+                        id: uid(),
+                        role: "tool" as Role,
+                        content: "Action was denied by user for safety reasons.",
+                        toolCallId: tc.id,
+                        createdAt: Date.now(),
+                      };
+                    }
+                  }
+                }
+              }
+
               const result = await executeTool(tc.name, tc.args, {
                 embedApiKey: embedCfg.apiKey,
                 embedBaseUrl: embedCfg.baseUrl,
                 embedModel: embedCfg.embeddingModel,
                 search: settings.search,
               });
+
+              if (tc.name.startsWith("browser_")) {
+                setActiveBrowserAction(null);
+              }
+
               return {
                 id: uid(),
                 role: "tool" as Role,
@@ -837,6 +899,7 @@ export default function App() {
       } finally {
         abortRef.current = null;
         setBusy(false);
+        setActiveBrowserAction(null);
       }
     },
     [
@@ -855,8 +918,42 @@ export default function App() {
     ],
   );
 
+  const requestSafetyApproval = useCallback(
+    (actionName: string, targetDescription: string, reason: string) => {
+      return new Promise<boolean>((resolve) => {
+        setSafetyModal({ actionName, targetDescription, reason, resolve });
+      });
+    },
+    [],
+  );
+
+  const handleToggleBadges = useCallback(async () => {
+    const nextVal = !showBadges;
+    setShowBadges(nextVal);
+    if (!nextVal) {
+      await chrome.runtime.sendMessage({
+        type: "EXECUTE_BROWSER_ACTION",
+        payload: { action: "clear_overlays" },
+      });
+    } else {
+      await chrome.runtime.sendMessage({
+        type: "EXECUTE_BROWSER_ACTION",
+        payload: { action: "scan_page", args: { showOverlays: true } },
+      });
+    }
+  }, [showBadges]);
+
   const cancel = useCallback(() => {
     abortRef.current?.abort();
+    setActiveBrowserAction(null);
+    if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
+      chrome.runtime
+        .sendMessage({
+          type: "EXECUTE_BROWSER_ACTION",
+          payload: { action: "clear_overlays" },
+        })
+        .catch(() => undefined);
+    }
   }, []);
 
   const handleRewind = useCallback(
@@ -879,12 +976,20 @@ export default function App() {
 
   const handleRegenerate = useCallback(
     async (assistantId: string) => {
-      // Drop the assistant message and re-send the last user message
+      // Drop the assistant turn (including any preceding tool calls/results) and re-send the last user message
       const idx = chat.messages.findIndex((m) => m.id === assistantId);
       if (idx < 0) return;
+      let lastUserIdx = -1;
+      for (let i = idx - 1; i >= 0; i--) {
+        if (chat.messages[i].role === "user") {
+          lastUserIdx = i;
+          break;
+        }
+      }
+      const cutIdx = lastUserIdx >= 0 ? lastUserIdx + 1 : idx;
       const truncated: Chat = {
         ...chat,
-        messages: chat.messages.slice(0, idx),
+        messages: chat.messages.slice(0, cutIdx),
       };
       setChat(truncated);
       // small tick so state updates land before send reads it
@@ -944,7 +1049,7 @@ export default function App() {
   const lastAssistantId = useMemo(() => {
     for (let i = chat.messages.length - 1; i >= 0; i--) {
       const m = chat.messages[i];
-      if (m.role === "assistant" && !m.pending) return m.id;
+      if (m.role === "assistant" && !m.pending && m.content.trim().length > 0) return m.id;
     }
     return null;
   }, [chat.messages]);
@@ -977,7 +1082,14 @@ export default function App() {
     );
   }
 
-  const hasMessages = chat.messages.length > 0;
+  const hasMessages = chat.messages.some(
+    (m) =>
+      m.role === "user" ||
+      (m.role === "assistant" &&
+        (m.content.trim().length > 0 ||
+          m.pending ||
+          (m.toolCalls && m.toolCalls.length > 0))),
+  );
   const visionCapable = isVisionCapable(settings);
   const searchCapable = isSearchCapable(settings);
   const cfg = activeProvider(settings);
@@ -1014,6 +1126,15 @@ export default function App() {
             setProjectModalOpen(true);
           }
         }}
+      />
+
+      <BrowserControlBar
+        activeTabTitle={page?.title}
+        activeAction={activeBrowserAction ?? undefined}
+        isControlling={!!activeBrowserAction}
+        showBadges={showBadges}
+        onToggleBadges={handleToggleBadges}
+        onStop={cancel}
       />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -1268,6 +1389,9 @@ export default function App() {
           await resetSkill(id);
           setSkills(await loadSkills());
         }}
+        onSkillsReload={async () => {
+          setSkills(await loadSkills());
+        }}
       />
 
       <SkillArgsModal
@@ -1305,6 +1429,22 @@ export default function App() {
         apiKey={cfg.apiKey}
         baseUrl={cfg.id === "gemini" ? cfg.baseUrl : undefined}
       />
+
+      {safetyModal && (
+        <SafetyConfirmModal
+          actionName={safetyModal.actionName}
+          targetDescription={safetyModal.targetDescription}
+          reason={safetyModal.reason}
+          onConfirm={() => {
+            safetyModal.resolve(true);
+            setSafetyModal(null);
+          }}
+          onDeny={() => {
+            safetyModal.resolve(false);
+            setSafetyModal(null);
+          }}
+        />
+      )}
 
       {/* Footer — context ring + provider + cost */}
       <div className="px-3 py-1 text-[10px] text-soft border-t border-border/60 flex items-center justify-between gap-2">

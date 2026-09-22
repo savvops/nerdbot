@@ -3,7 +3,7 @@ import {
   DEFAULT_SEARCH_SETTINGS,
   normalizeSearchSettings,
 } from "./searchProviders";
-import type { ProviderConfig, ProviderId, Settings } from "./types";
+import type { CustomAgentEndpoint, ProviderConfig, ProviderId, Settings } from "./types";
 
 const SETTINGS_KEY = "nerdbot.settings.v1";
 
@@ -14,6 +14,7 @@ export const PROVIDER_LABELS: Record<ProviderId, string> = {
   lmstudio: "LM Studio",
   ollama: "Ollama",
   anthropic: "Anthropic",
+  custom_agent: "Custom Agent",
 };
 
 export const PROVIDER_DOCS: Record<ProviderId, string> = {
@@ -23,6 +24,7 @@ export const PROVIDER_DOCS: Record<ProviderId, string> = {
   lmstudio: "https://lmstudio.ai",
   ollama: "https://ollama.com",
   anthropic: "https://console.anthropic.com/settings/keys",
+  custom_agent: "https://github.com/savvops",
 };
 
 /** Rough $/1M tokens — used purely for the in-composer cost hint. */
@@ -36,7 +38,51 @@ export const PROVIDER_COST: Record<
   lmstudio: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
   ollama: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
   anthropic: { fastIn: 0.8, fastOut: 4, qualityIn: 3, qualityOut: 15 },
+  custom_agent: { fastIn: 0, fastOut: 0, qualityIn: 0, qualityOut: 0 },
 };
+
+export const DEFAULT_CUSTOM_AGENTS: CustomAgentEndpoint[] = [
+  {
+    id: "hermes-legion",
+    name: "Hermes Legion",
+    baseUrl: "http://localhost:8000/v1",
+    apiKey: "",
+    model: "hermes-3",
+    description: "Local Legion Workstation Node",
+  },
+  {
+    id: "hermes-nukbox",
+    name: "Hermes Nukbox",
+    baseUrl: "http://nukbox.local:8000/v1",
+    apiKey: "",
+    model: "hermes-3-llama-3.1-8b",
+    description: "RTX 3060 Nukbox Personal Agent",
+  },
+  {
+    id: "hermes-spine",
+    name: "Hermes Spine",
+    baseUrl: "http://spine.local:8000/v1",
+    apiKey: "",
+    model: "hermes-3-llama-3.1-8b",
+    description: "Spine Personal Agent Node",
+  },
+  {
+    id: "sao-core",
+    name: "SAO Core",
+    baseUrl: "http://localhost:4177/v1",
+    apiKey: "",
+    model: "sao-agent",
+    description: "Savv Agent Office Orchestrator",
+  },
+  {
+    id: "openclaw-eve",
+    name: "OpenClaw / Eve",
+    baseUrl: "http://localhost:18789/v1",
+    apiKey: "",
+    model: "default",
+    description: "OpenClaw & Eve Agent Gateway",
+  },
+];
 
 const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
   gemini: {
@@ -90,6 +136,13 @@ const defaultProviders = (): Record<ProviderId, ProviderConfig> => ({
     fastModel: "claude-haiku-4-5-20251001",
     qualityModel: "claude-sonnet-4-6",
   },
+  custom_agent: {
+    id: "custom_agent",
+    apiKey: "",
+    baseUrl: "http://localhost:8000/v1",
+    fastModel: "default",
+    qualityModel: "default",
+  },
 });
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -101,6 +154,8 @@ export const DEFAULT_SETTINGS: Settings = {
   webSearch: true,
   theme: "dark",
   providers: defaultProviders(),
+  customAgents: DEFAULT_CUSTOM_AGENTS,
+  activeCustomAgentId: "hermes-legion",
   ragChunks: 5,
   maxContextTokens: 0,
   search: DEFAULT_SEARCH_SETTINGS,
@@ -120,6 +175,12 @@ export async function loadSettings(): Promise<Settings> {
         { ...def, ...((stored.providers as Record<string, object> | undefined)?.[id] ?? {}) },
       ]),
     ) as Settings["providers"],
+    customAgents:
+      stored.customAgents && stored.customAgents.length > 0
+        ? stored.customAgents
+        : DEFAULT_CUSTOM_AGENTS,
+    activeCustomAgentId:
+      stored.activeCustomAgentId || DEFAULT_SETTINGS.activeCustomAgentId,
     search: normalizeSearchSettings(stored.search),
   } as Settings;
 }
@@ -129,11 +190,36 @@ export async function saveSettings(settings: Settings): Promise<void> {
 }
 
 export function activeModel(settings: Settings): string {
+  if (settings.activeProvider === "custom_agent" && settings.customAgents && settings.customAgents.length > 0) {
+    const active =
+      settings.customAgents.find((a) => a.id === settings.activeCustomAgentId) ||
+      settings.customAgents[0];
+    return active.model || "default";
+  }
   const p = settings.providers[settings.activeProvider];
   return settings.speed === "fast" ? p.fastModel : p.qualityModel;
 }
 
 export function activeProvider(settings: Settings): ProviderConfig {
+  if (settings.activeProvider === "custom_agent" && settings.customAgents && settings.customAgents.length > 0) {
+    const active =
+      settings.customAgents.find((a) => a.id === settings.activeCustomAgentId) ||
+      settings.customAgents[0];
+    const baseCfg = settings.providers.custom_agent ?? {
+      id: "custom_agent",
+      apiKey: "",
+      baseUrl: active.baseUrl,
+      fastModel: active.model || "default",
+      qualityModel: active.model || "default",
+    };
+    return {
+      ...baseCfg,
+      baseUrl: active.baseUrl || baseCfg.baseUrl,
+      apiKey: active.apiKey !== undefined ? active.apiKey : baseCfg.apiKey,
+      fastModel: active.model || baseCfg.fastModel || "default",
+      qualityModel: active.model || baseCfg.qualityModel || "default",
+    };
+  }
   return settings.providers[settings.activeProvider];
 }
 
@@ -168,6 +254,7 @@ export const CONTEXT_WINDOW: Record<ProviderId, number> = {
   lmstudio: 32_000,
   ollama: 32_000,
   anthropic: 200_000,
+  custom_agent: 128_000,
 };
 
 /** Get the effective max context tokens for the current settings.

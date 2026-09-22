@@ -60,9 +60,20 @@ export type ProviderId =
   | "openrouter"
   | "lmstudio"
   | "ollama"
-  | "anthropic";
+  | "anthropic"
+  | "custom_agent";
 export type SpeedMode = "fast" | "quality";
 export type SearchProviderId = "searxng" | "jina" | "duckduckgo";
+
+export interface CustomAgentEndpoint {
+  id: string;
+  name: string;
+  baseUrl: string;
+  apiKey?: string;
+  model: string;
+  description?: string;
+  headers?: Record<string, string>;
+}
 
 export interface SearchSettings {
   /** Public-safe default is Jina; SearXNG can be selected for sovereign/local search. */
@@ -103,6 +114,10 @@ export interface Settings {
   webSearch: boolean;
   theme: "dark" | "light" | "system";
   providers: Record<ProviderId, ProviderConfig>;
+  /** Configured Custom Agents (e.g. Hermes Nukbox, Hermes Spine, Hermes Legion, SAO Core, Eve). */
+  customAgents?: CustomAgentEndpoint[];
+  /** Active Custom Agent ID when activeProvider is 'custom_agent'. */
+  activeCustomAgentId?: string;
   /** Number of RAG chunks to retrieve per query (1-10, default 5). */
   ragChunks: number;
   /** Max context tokens before auto-compressing old messages. 0 = no limit. */
@@ -130,6 +145,12 @@ export interface Skill {
   instructions: string;
   builtin?: boolean;
   args?: SkillArgument[];
+  /** Required or enabled tool bindings (e.g. 'browser', 'web_search', 'rag', 'cli') */
+  tools?: string[];
+  /** Target execution environments for the shared skill system */
+  environments?: ("nerdbot" | "master_control" | "sao")[];
+  author?: string;
+  version?: string;
   /** last-used arg values, persisted */
   lastArgs?: Record<string, string>;
   createdAt: number;

@@ -263,18 +263,30 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
   const provider = cfg.id as ProviderId;
   const model = activeModel(settings);
 
-  if (!cfg.apiKey && provider !== 'lmstudio' && provider !== 'ollama') {
+  if (!cfg.apiKey && provider !== 'lmstudio' && provider !== 'ollama' && provider !== 'custom_agent') {
     throw new Error(`Add an API key for ${provider} in Settings.`);
   }
 
   const url = `${cfg.baseUrl.replace(/\/$/, '')}/chat/completions`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${cfg.apiKey || 'none'}`,
   };
+  if (cfg.apiKey) {
+    headers['Authorization'] = `Bearer ${cfg.apiKey}`;
+  } else if (provider !== 'custom_agent') {
+    headers['Authorization'] = 'Bearer none';
+  }
+
   if (provider === 'openrouter') {
     headers['HTTP-Referer'] = 'https://nerdbot.local';
     headers['X-Title'] = 'Nerdbot';
+  }
+  if (provider === 'custom_agent') {
+    headers['X-Client'] = 'Nerdbot';
+    const activeCustomAgent = settings.customAgents?.find((a) => a.id === settings.activeCustomAgentId);
+    if (activeCustomAgent?.headers) {
+      Object.assign(headers, activeCustomAgent.headers);
+    }
   }
 
   const body = {
@@ -385,21 +397,35 @@ async function readSse(
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx;
-    while ((idx = buf.indexOf('\n')) !== -1) {
-      const line = buf.slice(0, idx).trim();
-      buf = buf.slice(idx + 1);
-      if (!line) continue;
-      if (line.startsWith('data:')) {
-        const data = line.slice(5).trim();
-        if (data) onEvent(data);
-      } else if (line.startsWith('{')) {
-        onEvent(line);
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      let shouldStop = false;
+      while ((idx = buf.indexOf('\n')) !== -1) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (!line) continue;
+        if (line.startsWith('data:')) {
+          const data = line.slice(5).trim();
+          if (data === '[DONE]') {
+            shouldStop = true;
+            break;
+          }
+          if (data) onEvent(data);
+        } else if (line.startsWith('{')) {
+          onEvent(line);
+        }
       }
+      if (shouldStop) break;
+    }
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
     }
   }
 }

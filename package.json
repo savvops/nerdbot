@@ -1,6 +1,6 @@
 {
   "name": "nerdbot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A polished Chrome MV3 side-panel AI assistant with multi-provider chat, skills, RAG, page context, voice, and image tools.",
   "license": "Apache-2.0",
   "type": "module",

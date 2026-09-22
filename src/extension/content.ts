@@ -1,7 +1,17 @@
 /// <reference types="chrome" />
 
+import {
+  scanFocusMap,
+  clearOverlays,
+  clickElement,
+  typeElement,
+  selectOption,
+  scrollPage,
+} from './domEngine';
+
 if (!(window as any).__nerdbotContentLoaded) {
   (window as any).__nerdbotContentLoaded = true;
+  clearOverlays();
 
 const MAX_PAGE_TEXT = 60_000;
 
@@ -85,6 +95,41 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.type === 'TOGGLE_QUICK_CHAT') {
     toggleQuickChat();
+    sendResponse({ ok: true });
+    return true;
+  }
+  if (message?.type === 'SCAN_PAGE_ELEMENTS') {
+    try {
+      const result = scanFocusMap(!!message.showOverlays);
+      sendResponse({ ok: true, data: result });
+    } catch (e) {
+      sendResponse({ ok: false, error: String(e) });
+    }
+    return true;
+  }
+  if (message?.type === 'BROWSER_CLICK') {
+    clickElement(message.identifier).then(sendResponse);
+    return true;
+  }
+  if (message?.type === 'BROWSER_TYPE') {
+    typeElement(
+      message.identifier,
+      message.text,
+      message.clearFirst,
+      message.pressEnter
+    ).then(sendResponse);
+    return true;
+  }
+  if (message?.type === 'BROWSER_SELECT') {
+    selectOption(message.identifier, message.value).then(sendResponse);
+    return true;
+  }
+  if (message?.type === 'BROWSER_SCROLL') {
+    scrollPage(message.direction, message.amount).then(sendResponse);
+    return true;
+  }
+  if (message?.type === 'CLEAR_OVERLAYS') {
+    clearOverlays();
     sendResponse({ ok: true });
     return true;
   }
