@@ -16,6 +16,7 @@ export const payloadValue = v.object({
 export const projectValue = v.object({
   id: v.string(), name: v.string(), emoji: v.string(), createdAt: v.number(), updatedAt: v.number(),
   description: v.optional(v.string()), systemPrompt: v.optional(v.string()),
+  deleted: v.optional(v.boolean()),
 });
 export default defineSchema({
   ...authTables,

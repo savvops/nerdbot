@@ -118,7 +118,7 @@ export const writeProject = mutation({ args: {
   const existing = await ctx.db.query('projects').withIndex('owner_client', q => q.eq('owner', user).eq('clientId', project.id)).unique();
   // Ignore delayed older writes; equal timestamps make retries idempotent.
   if (existing && existing.updatedAt > project.updatedAt) return;
-  const { id, ...metadata } = project;
+  const { id, deleted: _deleted, ...metadata } = project as any;
   const row = { ...metadata, clientId: id, owner: user, deleted, sequence: await nextSequence(ctx, user) };
   if (existing) await ctx.db.patch(existing._id, row);
   else await ctx.db.insert('projects', row);

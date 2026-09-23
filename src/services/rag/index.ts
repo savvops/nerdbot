@@ -18,12 +18,37 @@ const DOCS_KEY = 'nerdbot.knowledge.docs.v1';
 
 export async function listFolders(): Promise<KnowledgeFolder[]> {
   const folders = await get<KnowledgeFolder[]>(FOLDERS_KEY, []);
-  return folders.map(folder => ({ ...folder, updatedAt: folder.updatedAt ?? folder.createdAt }));
+  return folders.map(folder => {
+    const { id, name, emoji, createdAt, updatedAt, description, systemPrompt } = folder as any;
+    const clean: KnowledgeFolder = {
+      id,
+      name,
+      emoji: emoji || '📁',
+      createdAt: createdAt ?? Date.now(),
+      updatedAt: updatedAt ?? createdAt ?? Date.now(),
+    };
+    if (description) clean.description = description;
+    if (systemPrompt) clean.systemPrompt = systemPrompt;
+    return clean;
+  });
 }
 
 /** Replaces project metadata only. Documents and vector chunks remain device-local. */
 export async function replaceFolders(folders: KnowledgeFolder[]): Promise<void> {
-  await set(FOLDERS_KEY, folders);
+  const clean = folders.map(folder => {
+    const { id, name, emoji, createdAt, updatedAt, description, systemPrompt } = folder as any;
+    const res: KnowledgeFolder = {
+      id,
+      name,
+      emoji: emoji || '📁',
+      createdAt: createdAt ?? Date.now(),
+      updatedAt: updatedAt ?? createdAt ?? Date.now(),
+    };
+    if (description) res.description = description;
+    if (systemPrompt) res.systemPrompt = systemPrompt;
+    return res;
+  });
+  await set(FOLDERS_KEY, clean);
 }
 
 export async function createFolder(

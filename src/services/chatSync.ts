@@ -32,8 +32,21 @@ const fingerprint = (chat: Chat) => JSON.stringify(textChat(chat));
 const fresh = (): Cache => ({ current: local.emptyChat(), chats: {}, revisions: {}, fingerprints: {}, pending: {}, cursor: 0, notes: {}, noteQueue: {}, archived: {}, imported: false,
   projects: {}, projectQueue: {}, projectsReady: false });
 
-function projectValue(folder: KnowledgeFolder): KnowledgeFolder {
-  return { ...folder, updatedAt: folder.updatedAt ?? folder.createdAt };
+export function projectValue(folder: any): KnowledgeFolder {
+  const result: KnowledgeFolder = {
+    id: String(folder.id),
+    name: String(folder.name ?? ''),
+    emoji: String(folder.emoji ?? '📁'),
+    createdAt: Number(folder.createdAt ?? Date.now()),
+    updatedAt: Number(folder.updatedAt ?? folder.createdAt ?? Date.now()),
+  };
+  if (folder.description && typeof folder.description === 'string' && folder.description.trim()) {
+    result.description = folder.description.trim();
+  }
+  if (folder.systemPrompt && typeof folder.systemPrompt === 'string' && folder.systemPrompt.trim()) {
+    result.systemPrompt = folder.systemPrompt.trim();
+  }
+  return result;
 }
 
 // IndexedDB keeps a durable outbox without the small localStorage/Chrome quota.
@@ -223,7 +236,8 @@ export function createChatSync(client: ConvexReactClient, account: string) {
       const projects = await cache(c => Object.values(c.projectQueue ?? {}));
       for (const job of projects) {
         if (stopped) return;
-        await client.mutation(api.sync.writeProject, { ...job, expectedAccount: account });
+        const project = projectValue(job.project);
+        await client.mutation(api.sync.writeProject, { expectedAccount: account, project, deleted: Boolean(job.deleted) });
         await cache(c => {
           const current = c.projectQueue?.[job.project.id];
           if (current && current.deleted === job.deleted && current.project.updatedAt === job.project.updatedAt) delete c.projectQueue[job.project.id];

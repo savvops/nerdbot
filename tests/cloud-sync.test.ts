@@ -21,6 +21,9 @@ describe('account-owned chat sync', () => {
     expect((await a.query(api.sync.changes, { after: 0 })).some(change => change.kind === 'project' && change.id === project.id)).toBe(true);
     await a.mutation(api.sync.writeProject, { project: { ...project, updatedAt: 3 }, deleted: true });
     expect((await a.query(api.sync.readProject, { id: project.id }))?.deleted).toBe(true);
+    // Verifies writeProject accepts project object even if deleted property is passed
+    await a.mutation(api.sync.writeProject, { project: { ...project, deleted: false, updatedAt: 4 }, deleted: false });
+    expect((await a.query(api.sync.readProject, { id: project.id }))?.deleted).toBe(false);
   });
   it('rejects unsigned callers and isolates reads, writes and pins by account', async () => {
     const { t, a, b } = await setup();
