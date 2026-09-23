@@ -3,6 +3,7 @@ import type { Attachment, Message, ProviderId, Settings } from './types';
 import { withRetry } from '../utils/retry';
 import { captureRateLimits } from '../utils/rateLimitTracker';
 import { ALL_TOOLS_SCHEMA } from './tools';
+import { getCredentialsMap, resolveSecretsInText, maskSecretsInText } from './credentials';
 
 export interface StreamRequest {
   settings: Settings;
@@ -23,10 +24,37 @@ export interface Citation {
 
 export async function streamCompletion(req: StreamRequest): Promise<string> {
   if (/^~?typesafe\/jev/i.test(activeModel(req.settings))) throw new Error('Jev is a decision model. Use the experimental OpenRouter section in Settings and select a regular model for chat.');
-  const provider = activeProvider(req.settings).id;
-  if (provider === 'gemini') return streamGemini(req);
-  if (provider === 'anthropic') return streamAnthropic(req);
-  return streamOpenAICompatible(req);
+
+  const vault = await getCredentialsMap().catch(() => ({}));
+  let preparedReq = req;
+
+  if (Object.keys(vault).length > 0) {
+    const resolvedSysPrompt = resolveSecretsInText(req.systemPrompt, vault);
+    const resolvedMessages = req.messages.map((m) => ({
+      ...m,
+      content: resolveSecretsInText(m.content, vault),
+    }));
+
+    const originalOnDelta = req.onDelta;
+    const maskedOnDelta = (delta: string) => {
+      originalOnDelta(maskSecretsInText(delta, vault));
+    };
+
+    preparedReq = {
+      ...req,
+      systemPrompt: resolvedSysPrompt,
+      messages: resolvedMessages,
+      onDelta: maskedOnDelta,
+    };
+  }
+
+  const provider = activeProvider(preparedReq.settings).id;
+  let result: string;
+  if (provider === 'gemini') result = await streamGemini(preparedReq);
+  else if (provider === 'anthropic') result = await streamAnthropic(preparedReq);
+  else result = await streamOpenAICompatible(preparedReq);
+
+  return maskSecretsInText(result, vault);
 }
 
 function attachmentsToGeminiParts(atts: Attachment[] = []) {

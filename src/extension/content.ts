@@ -164,7 +164,7 @@ function mountQuickChat() {
         overflow: hidden;
       }
       .qc-head { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid rgb(48 53 65); font-size:13px; }
-      .qc-orb { width:18px; height:18px; border-radius:50%; background: conic-gradient(from 220deg, #8aa4ff, #c089ff, #ff8ad1, #ffd089, #8aa4ff); }
+      .qc-orb { width:18px; height:18px; border-radius:50%; background: conic-gradient(from 220deg, #38bdf8, #2563eb, #1d4ed8, #38bdf8); }
       .qc-title { font-weight:600; flex:1; }
       .qc-x { background:transparent; border:0; color:rgb(156 163 178); cursor:pointer; padding:4px; border-radius:6px; }
       .qc-x:hover { background:rgb(32 36 45); color:rgb(232 234 240); }

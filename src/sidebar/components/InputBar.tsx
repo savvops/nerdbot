@@ -1,6 +1,7 @@
-import { ArrowUp, BookOpen, Globe, Image as ImageIcon, Paperclip, Square, Plus } from 'lucide-react';
+import { ArrowUp, BookOpen, Globe, Image as ImageIcon, Paperclip, Square, Plus, KeyRound, Shield } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Attachment, PageContext, Skill, SpeedMode } from '../../services/types';
+import { listCredentials, type CredentialItem } from '../../services/credentials';
 import PageSharePill from './PageSharePill';
 import SpeedToggle from './SpeedToggle';
 import SkillsMenu from './SkillsMenu';
@@ -42,6 +43,7 @@ interface Props {
 
   tokensIn: number;
   costHint: string;
+  onOpenVault?: () => void;
 }
 
 export default function InputBar(props: Props) {
@@ -51,6 +53,7 @@ export default function InputBar(props: Props) {
     onSubmit,
     onCancel,
     busy,
+    onOpenVault,
     page,
     shareEnabled,
     onToggleShare,
@@ -82,6 +85,40 @@ export default function InputBar(props: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [vaultOpen, setVaultOpen] = useState(false);
+  const [vaultItems, setVaultItems] = useState<CredentialItem[]>([]);
+  const vaultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!vaultOpen) return;
+    listCredentials().then(setVaultItems).catch(() => {});
+    const handleClickOutside = (e: MouseEvent) => {
+      if (vaultRef.current && !vaultRef.current.contains(e.target as Node)) {
+        setVaultOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [vaultOpen]);
+
+  const handleInsertSecret = (keyName: string) => {
+    const placeholder = `$SECRET{${keyName}}`;
+    const ta = ref.current;
+    if (!ta) {
+      onChange(value ? `${value} ${placeholder}` : placeholder);
+    } else {
+      const start = ta.selectionStart ?? value.length;
+      const end = ta.selectionEnd ?? value.length;
+      const next = value.slice(0, start) + placeholder + value.slice(end);
+      onChange(next);
+      setTimeout(() => {
+        ta.focus();
+        const pos = start + placeholder.length;
+        ta.setSelectionRange(pos, pos);
+      }, 0);
+    }
+    setVaultOpen(false);
+  };
 
   useEffect(() => {
     const ta = ref.current;
@@ -245,6 +282,77 @@ export default function InputBar(props: Props) {
           >
             <Paperclip size={16} />
           </button>
+          <div className="relative" ref={vaultRef}>
+            <button
+              type="button"
+              onClick={() => setVaultOpen((v) => !v)}
+              className="grid place-items-center w-8 h-8 rounded-full text-muted hover:text-ink hover:bg-elevated transition-colors"
+              title="Insert secret from Credentials Vault ($SECRET{...})"
+            >
+              <KeyRound size={15} />
+            </button>
+
+            {vaultOpen && (
+              <div className="absolute bottom-full left-0 mb-2 w-64 p-2.5 rounded-xl bg-surface border border-border shadow-2xl z-50 text-xs space-y-2 animate-fade-in">
+                <div className="flex items-center justify-between pb-1.5 border-b border-border text-[11.5px] font-semibold text-ink">
+                  <span className="flex items-center gap-1.5">
+                    <Shield size={13} className="text-emerald-400" />
+                    <span>Insert Secret</span>
+                  </span>
+                  {onOpenVault && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVaultOpen(false);
+                        onOpenVault();
+                      }}
+                      className="text-[10.5px] text-accent hover:underline font-normal"
+                    >
+                      Manage Vault
+                    </button>
+                  )}
+                </div>
+
+                {vaultItems.length === 0 ? (
+                  <div className="p-3 text-center text-muted text-[11px] space-y-2">
+                    <div>No secrets stored in vault yet.</div>
+                    {onOpenVault && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVaultOpen(false);
+                          onOpenVault();
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-accent text-white font-medium hover:brightness-110"
+                      >
+                        Add first secret
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {vaultItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => handleInsertSecret(item.key)}
+                        className="w-full text-left p-1.5 rounded-lg hover:bg-elevated text-ink flex flex-col gap-0.5 transition-colors group"
+                      >
+                        <span className="font-mono font-semibold text-[11.5px] text-ink group-hover:text-accent truncate">
+                          {item.key}
+                        </span>
+                        {item.description && (
+                          <span className="text-[10px] text-muted truncate">
+                            {item.description}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <textarea
             ref={ref}
             value={value}

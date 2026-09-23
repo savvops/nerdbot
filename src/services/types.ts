@@ -178,3 +178,18 @@ export interface SharedTab {
   text?: string;
   transcript?: string;
 }
+
+export interface CloudAccountInfo {
+  user: { id: string; email: string } | null;
+  status: {
+    message: string;
+    pending?: number;
+    error?: boolean;
+    imported?: boolean;
+  };
+  onSignIn: () => void;
+  onSignOut: () => Promise<void>;
+  onRetry: () => void;
+  onImportLocal: () => Promise<void>;
+  error?: string;
+}

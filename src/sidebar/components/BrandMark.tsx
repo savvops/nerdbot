@@ -27,12 +27,12 @@ export default function BrandMark({ size = 22, className = '' }: Props) {
     >
       <defs>
         <linearGradient id={grad} x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#8aa4ff" />
-          <stop offset="0.55" stopColor="#c089ff" />
-          <stop offset="1" stopColor="#ff8ad1" />
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="50%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#1d4ed8" />
         </linearGradient>
         <linearGradient id={shine} x1="24" y1="6" x2="24" y2="26" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#ffffff" stopOpacity="0.35" />
+          <stop offset="0" stopColor="#ffffff" stopOpacity="0.25" />
           <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
       </defs>

@@ -100,6 +100,7 @@ import {
 import type {
   Attachment,
   Chat,
+  CloudAccountInfo,
   Message,
   PageContext,
   Settings,
@@ -130,11 +131,22 @@ interface SendOptions {
   chatToResume?: Chat;
 }
 
-export default function App({ manager = localChats, sync }: { manager?: ChatManager; sync?: ChatSync }) {
+export default function App({
+  manager = localChats,
+  sync,
+  cloudAccount,
+}: {
+  manager?: ChatManager;
+  sync?: ChatSync;
+  cloudAccount?: CloudAccountInfo;
+}) {
   const { archiveCurrent, deleteFromHistory, loadCurrent, loadHistory, loadPinned, pinMessage,
     restoreFromHistory, saveChatToHistory, saveCurrent, unpinNote } = manager;
   const [ready, setReady] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<
+    "connections" | "vault" | "models" | "personas"
+  >("connections");
   const [chat, setChat] = useState<Chat>(() => emptyChat());
   const chatRef = useRef(chat);
   chatRef.current = chat;
@@ -1170,9 +1182,17 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
         hasMessages={hasMessages}
         onToggleDrawer={() => setDrawerOpen(true)}
         onNewChat={() => handleNewChat({ keepProject: true })}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => {
+          setSettingsInitialTab("connections");
+          setSettingsOpen(true);
+        }}
+        onOpenSettingsTab={(tab) => {
+          setSettingsInitialTab(tab);
+          setSettingsOpen(true);
+        }}
         onCaptureScreenshot={handleScreenshot}
         visionCapable={visionCapable}
+        cloudAccount={cloudAccount}
         activeProject={
           chat.projectId
             ? (() => {
@@ -1292,6 +1312,10 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
         onToggleKnowledge={() => setKnowledgeEnabled((v) => !v)}
         onOpenKnowledge={() => setKnowledgePanelOpen(true)}
         knowledgeCount={knowledgeCount}
+        onOpenVault={() => {
+          setSettingsInitialTab("vault");
+          setSettingsOpen(true);
+        }}
         tokensIn={tokensIn}
         costHint={costHint}
       />
@@ -1385,6 +1409,8 @@ export default function App({ manager = localChats, sync }: { manager?: ChatMana
           setSettingsOpen(false);
           setBugReportOpen(true);
         }}
+        cloudAccount={cloudAccount}
+        initialTab={settingsInitialTab}
       />
 
       <BugReportModal

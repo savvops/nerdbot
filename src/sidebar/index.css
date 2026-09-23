@@ -61,7 +61,7 @@ body {
 
 /* Brand gradient for the Nerdbot mark */
 .nb-brand-gradient {
-  background: linear-gradient(135deg, #8aa4ff 0%, #c089ff 50%, #ff8ad1 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 55%, #94a3b8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -253,6 +253,6 @@ html.light .nb-codeblock {
 /* Glow background for hero */
 .nb-hero-glow {
   background:
-    radial-gradient(700px 320px at 50% -120px, rgb(138 164 255 / 0.18), transparent 70%),
-    radial-gradient(500px 240px at 100% 80%, rgb(192 137 255 / 0.12), transparent 70%);
+    radial-gradient(700px 320px at 50% -120px, rgb(56 189 248 / 0.07), transparent 70%),
+    radial-gradient(500px 240px at 100% 80%, rgb(148 163 184 / 0.04), transparent 70%);
 }

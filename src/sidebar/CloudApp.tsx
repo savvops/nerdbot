@@ -3,6 +3,7 @@ import { ConvexAuthProvider, useAuthActions } from '@convex-dev/auth/react';
 import { ConvexReactClient, useConvexAuth, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { createChatSync } from '../services/chatSync';
+import type { CloudAccountInfo } from '../services/types';
 import App from './App';
 
 // This is a public client endpoint, not a credential. The environment value
@@ -45,42 +46,106 @@ function AccountSession({ user }: { user: { id: string; email: string } }) {
   const sync = useMemo(() => createChatSync(client!, user.id), [user.id]);
   const [status, setStatus] = useState(sync.getStatus());
   const [accountError, setAccountError] = useState('');
-  const [signingOut, setSigningOut] = useState(false);
+
   useEffect(() => {
     const unsubscribe = sync.subscribe(() => setStatus({ ...sync.getStatus() }));
     const stop = sync.start();
-    return () => { unsubscribe(); stop(); };
+    return () => {
+      unsubscribe();
+      stop();
+    };
   }, [sync]);
-  return <div className="h-full flex flex-col bg-bg text-ink">
-    <section aria-label="Cloud account" className="shrink-0 border-b border-border px-3 py-2 text-xs space-y-1">
-      <div className="flex items-center gap-2"><span className="truncate flex-1" title={user.email}>{user.email}</span><button disabled={signingOut} className="text-muted min-h-9" onClick={async () => {
-        if (status.pending && !window.confirm('Some changes are still saved only on this device. Sign out? They will sync when you sign back into this account.')) return;
-        setSigningOut(true);
-        try { await signOut(); } catch { setAccountError('Could not sign out. Please retry.'); setSigningOut(false); }
-      }}>Sign out</button></div>
-      <p role="status" className={status.error ? 'text-danger' : 'text-muted'}>{status.message}{status.pending ? ` · ${status.pending} pending` : ''}</p>
-      {status.error && <button className="text-accent min-h-9" onClick={() => void sync.retry()}>Retry sync</button>}
-      {!status.imported && <button className="text-accent min-h-9" onClick={async () => {
-        if (!window.confirm(`Copy this device’s existing text chats, project folders, and pins into ${user.email}? Attachments, API keys and knowledge files stay on this device.`)) return;
-        try { await sync.importLocal(); } catch { setAccountError('Import could not finish. Your original chats are unchanged.'); }
-      }}>Import this device’s chats and projects</button>}
-      {accountError && <p role="alert" className="text-danger">{accountError}</p>}
-    </section>
-    <div className="flex-1 min-h-0"><App manager={sync.manager} sync={sync} /></div>
-  </div>;
+
+  const handleSignOut = async () => {
+    if (
+      status.pending &&
+      !window.confirm(
+        'Some changes are still saved only on this device. Sign out? They will sync when you sign back into this account.'
+      )
+    ) {
+      return;
+    }
+    try {
+      await signOut();
+    } catch {
+      setAccountError('Could not sign out. Please retry.');
+    }
+  };
+
+  const handleImportLocal = async () => {
+    if (
+      !window.confirm(
+        `Copy this device’s existing text chats, project folders, and pins into ${user.email}? Attachments, API keys and knowledge files stay on this device.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await sync.importLocal();
+    } catch {
+      setAccountError('Import could not finish. Your original chats are unchanged.');
+    }
+  };
+
+  const cloudAccount: CloudAccountInfo = {
+    user,
+    status: {
+      message: status.message,
+      pending: status.pending,
+      error: Boolean(status.error),
+      imported: Boolean(status.imported),
+    },
+    onSignIn: () => {},
+    onSignOut: handleSignOut,
+    onRetry: () => void sync.retry(),
+    onImportLocal: handleImportLocal,
+    error: accountError,
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-bg text-ink">
+      <div className="flex-1 min-h-0">
+        <App manager={sync.manager} sync={sync} cloudAccount={cloudAccount} />
+      </div>
+    </div>
+  );
 }
 
 function Gate() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const user = useQuery(api.sync.me, isAuthenticated ? {} : 'skip');
   const [open, setOpen] = useState(false);
-  if (isLoading || (isAuthenticated && user === undefined)) return <div className="h-full grid place-items-center bg-bg text-muted">Connecting to your account…</div>;
-  if (isAuthenticated && user) return <AccountSession key={user.id} user={user} />;
-  return <div className="h-full flex flex-col bg-bg text-ink">
-    <div className="shrink-0 flex items-center justify-between border-b border-border px-3 py-1 text-xs"><span className="text-muted">Chats saved on this device</span><button className="text-accent min-h-10" onClick={() => setOpen(true)}>Sign in to sync</button></div>
-    <div className="flex-1 min-h-0"><App /></div>
-    {open && <SignIn onClose={() => setOpen(false)} />}
-  </div>;
+
+  if (isLoading || (isAuthenticated && user === undefined)) {
+    return (
+      <div className="h-full grid place-items-center bg-bg text-muted">
+        Connecting to your account…
+      </div>
+    );
+  }
+  if (isAuthenticated && user) {
+    return <AccountSession key={user.id} user={user} />;
+  }
+
+  const cloudAccount: CloudAccountInfo = {
+    user: null,
+    status: {
+      message: 'Saved on this device',
+    },
+    onSignIn: () => setOpen(true),
+    onSignOut: async () => {},
+    onRetry: () => {},
+    onImportLocal: async () => {},
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-bg text-ink">
+      <div className="flex-1 min-h-0">
+        <App cloudAccount={cloudAccount} />
+      </div>
+      {open && <SignIn onClose={() => setOpen(false)} />}
+    </div>
+  );
 }
 
 export default function CloudApp() {

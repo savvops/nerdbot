@@ -15,6 +15,7 @@ import {
   Volume2,
   VolumeX,
   Wrench,
+  Lock,
 } from 'lucide-react';
 import React, { useRef, useState } from 'react';
 import 'highlight.js/styles/github-dark.css';
@@ -35,6 +36,28 @@ interface Props {
   onRegenerate?: (id: string) => void;
   onPin?: (id: string) => void;
   isLastAssistant?: boolean;
+}
+
+function renderContentWithSecrets(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(\$SECRET\{[A-Za-z0-9_-]+\})/g);
+  return parts.map((part, index) => {
+    const match = /^\$SECRET\{([A-Za-z0-9_-]+)\}$/.exec(part);
+    if (match) {
+      const keyName = match[1];
+      return (
+        <span
+          key={index}
+          className="inline-flex items-center gap-1 mx-0.5 px-1.5 py-0.5 rounded bg-surface border border-border font-mono text-[12px] text-ink select-all font-medium shadow-sm"
+          title="Protected vault credential"
+        >
+          <Lock size={11} className="text-emerald-400 shrink-0" />
+          <span>{keyName}</span>
+        </span>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
 }
 
 export default function MessageView({
@@ -105,8 +128,8 @@ export default function MessageView({
               )}
             </div>
           )}
-          <div className="px-4 py-2.5 rounded-2xl rounded-br-md bg-elevated text-ink text-[14px] leading-relaxed border border-border">
-            {message.content}
+          <div className="px-4 py-2.5 rounded-2xl rounded-br-md bg-elevated text-ink text-[14px] leading-relaxed border border-border whitespace-pre-wrap break-words">
+            {renderContentWithSecrets(message.content)}
           </div>
           <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition-opacity">
             {onEdit && (
