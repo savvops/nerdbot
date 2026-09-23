@@ -41,4 +41,13 @@ describe('browser tool replies in project chat history', () => {
     });
     expect(body.tools[0].functionDeclarations.map((tool: any) => tool.name)).toEqual(['search_web', 'fetch_url']);
   });
+
+  it('ensures all declared tools have strictly unique names to prevent duplicate declaration errors', async () => {
+    const { ALL_TOOLS_SCHEMA } = await import('../src/services/tools');
+    const names = ALL_TOOLS_SCHEMA.map(t => t.function.name);
+    const unique = new Set(names);
+    expect(names.length).toBe(unique.size);
+    expect(names.filter(n => n === 'browser_scroll')).toHaveLength(1);
+    expect(names.filter(n => n === 'browser_navigate')).toHaveLength(1);
+  });
 });

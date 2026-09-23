@@ -108,9 +108,15 @@ async function streamGemini(req: StreamRequest): Promise<string> {
   // and replayed functionCall/functionResponse history stays valid. Native
   // grounding is only used when no tool loop is attached.
   if (req.onToolCall || messages.some(m => m.toolCalls?.length)) {
-    const declarations = req.allowedTools?.length
+    const rawDeclarations = req.allowedTools?.length
       ? ALL_TOOLS_SCHEMA.filter(tool => req.allowedTools!.includes(tool.function.name))
       : ALL_TOOLS_SCHEMA;
+    const seenNames = new Set<string>();
+    const declarations = rawDeclarations.filter(tool => {
+      if (seenNames.has(tool.function.name)) return false;
+      seenNames.add(tool.function.name);
+      return true;
+    });
     if (!req.onToolCall) body.toolConfig = { functionCallingConfig: { mode: 'NONE' } };
     body.tools = [
       { functionDeclarations: declarations.map((tool) => tool.function) },
@@ -335,9 +341,15 @@ async function streamOpenAICompatible(req: StreamRequest): Promise<string> {
   };
 
   if (req.onToolCall) {
-    (body as any).tools = req.allowedTools?.length
+    const rawTools = req.allowedTools?.length
       ? ALL_TOOLS_SCHEMA.filter(tool => req.allowedTools!.includes(tool.function.name))
       : ALL_TOOLS_SCHEMA;
+    const seenNames = new Set<string>();
+    (body as any).tools = rawTools.filter(tool => {
+      if (seenNames.has(tool.function.name)) return false;
+      seenNames.add(tool.function.name);
+      return true;
+    });
   }
 
   const res = await fetch(url, {

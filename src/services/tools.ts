@@ -6,10 +6,13 @@ import {
 } from "./scraper";
 import { queryKnowledge } from "./rag";
 import type { SearchSettings } from "./types";
-import { BROWSER_TOOLS, executeBrowserTool } from './browserControl';
+import { BROWSER_TOOLS, executeBrowserTool, controlState } from './browserControl';
 
+const seenToolNames = new Set<string>();
 export const ALL_TOOLS_SCHEMA = [
-  ...BROWSER_TOOLS,
+  ...BROWSER_TOOLS.filter(
+    (t) => t.function.name !== 'browser_navigate' && t.function.name !== 'browser_scroll',
+  ),
   {
     type: "function",
     function: {
@@ -226,7 +229,11 @@ export const ALL_TOOLS_SCHEMA = [
       },
     },
   },
-];
+].filter((tool) => {
+  if (seenToolNames.has(tool.function.name)) return false;
+  seenToolNames.add(tool.function.name);
+  return true;
+});
 
 export interface ToolExecutionOptions {
   signal?: AbortSignal;
@@ -243,7 +250,12 @@ export async function executeTool(
 ): Promise<string> {
   try {
     if (options.signal?.aborted) return 'Error: stopped by user.';
-    if (name.startsWith('browser_')) return JSON.stringify(await executeBrowserTool(name, args, options.signal));
+    if (['browser_screenshot', 'browser_observe', 'browser_action'].includes(name)) {
+      return JSON.stringify(await executeBrowserTool(name, args, options.signal));
+    }
+    if ((name === 'browser_navigate' || name === 'browser_scroll') && controlState()) {
+      return JSON.stringify(await executeBrowserTool(name, args, options.signal));
+    }
     switch (name) {
       case "search_web":
         if (!args.query) return "Error: query is required.";
