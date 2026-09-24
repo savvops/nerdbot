@@ -39,8 +39,8 @@ const TOOL_OPTIONS = [
 
 const ENV_OPTIONS: Array<{ id: 'nerdbot' | 'master_control' | 'sao'; label: string }> = [
   { id: 'nerdbot', label: 'Nerdbot (Browser)' },
-  { id: 'master_control', label: 'Master Control (Telegram)' },
-  { id: 'sao', label: 'SAO (Office Swarm)' },
+  { id: 'master_control', label: 'Telegram agent' },
+  { id: 'sao', label: 'Agent swarm' },
 ];
 
 export default function AddSkillModal({ open, onClose, onSave, editingSkill, onUpdate }: Props) {
@@ -123,7 +123,7 @@ export default function AddSkillModal({ open, onClose, onSave, editingSkill, onU
                 ? editingSkill?.builtin
                   ? 'Editing built-in — you can reset it later'
                   : 'Update skill definition'
-                : 'Shared across Nerdbot, Master Control & SAO'}
+                : 'Shared across Nerdbot and other agents'}
             </div>
           </div>
           <button

@@ -38,9 +38,9 @@ The initial release uses conservative per-action approval for clicks/fills. Scre
 - `npm run build`: TypeScript and production extension/mobile build.
 - `npm run test:integrations`: settings migration, NVIDIA authenticated key checks, Jev validation/routing, tab isolation and stale approvals, proxy restrictions, secret redaction. Network responses are fixtures; live paid NVIDIA/Jev inference requires configured keys.
 - Shared mobile UI and a real Gemini streaming reply were verified on the tailnet URL.
-- The running Legion extension must be reloaded from `brave://extensions` after a build. Until then the old worker continues to support existing chat/context, and new browser RPC requests return a reload instruction.
-- Legion uses hidden `Nerdbot_PC_Bridge` and `Nerdbot_Mobile` Scheduled Tasks with logon triggers and restart-on-failure settings. `scripts/run-service.ps1` is their launcher; logs remain in LocalAppData.
-- Original Legion source/build/bridge files were archived before deployment. The Expo project was not deleted or overwritten.
+- The running extension must be reloaded from `brave://extensions` after a build. Until then the old worker continues to support existing chat/context, and new browser RPC requests return a reload instruction.
+- The dev machine uses hidden `Nerdbot_PC_Bridge` and `Nerdbot_Mobile` Scheduled Tasks with logon triggers and restart-on-failure settings. `scripts/run-service.ps1` is their launcher; logs remain in LocalAppData.
+- Original source/build/bridge files were archived before deployment. The Expo project was not deleted or overwritten.
 
 Pending live validation: NVIDIA and Jev with user-configured keys, browser action round trip after extension reload, and iPhone Safari device checks. Build verification is not a substitute for these.
 
@@ -49,6 +49,6 @@ The bridge now sends application keepalive messages every 20 seconds so an idle 
 Build and integration checks pass, including mobile refresh recovery and disconnected-worker reporting. Live connection longevity and real browser actions remain pending the PC worker reconnecting.
 
 ### September 22 installed-path repair
-Brave's Default profile actually loads extension `plpifbdnnahcjafipbjbnabejcbajbab` from `C:\Users\savv\Desktop\Savvops-legion\projects\extentions\nerdbot\dist`. The mobile/bridge services run from `projects\personal\nerdbot`. Updating the service project's build alone does not update the installed extension. The loaded build supported tab sharing but lacked `BROWSER_REQUEST`, causing control requests to time out even after reload.
+Brave's Default profile actually loads extension `plpifbdnnahcjafipbjbnabejcbajbab` from `C:\Users\<you>\...\projects\extentions\nerdbot\dist`. The mobile/bridge services run from `projects\personal\nerdbot`. Updating the service project's build alone does not update the installed extension. The loaded build supported tab sharing but lacked `BROWSER_REQUEST`, causing control requests to time out even after reload.
 
 Archived the installed build under the extension project's `archive/dist-before-control-repair-20260922-012335/dist`, copied the updated service build into the actual installed path, and verified all 42 copied files by SHA-256. Its background script matches the locally rebuilt and integration-tested version and contains the browser-control handler. A Brave extension reload is still required to activate the repaired files; live control verification remains pending. For future deployments, check the installed extension path before copying a build.

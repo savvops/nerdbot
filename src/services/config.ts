@@ -37,7 +37,7 @@ export const PROVIDER_RECOMMENDATIONS: Record<ProviderId, string> = {
   lmstudio: "Use a loaded 7B–8B model for fast mode when your hardware is limited.",
   ollama: "Use a 3B–8B model for fast mode; choose a larger installed model for quality.",
   anthropic: "Use Haiku for fast mode and Sonnet for quality.",
-  custom_agent: "Connect Hermes (Nukbox/Legion), OpenClaw, Eve, or SAO Core for local sovereign intelligence.",
+  custom_agent: "Connect your own local agent endpoint (OpenAI-compatible) for private inference.",
 };
 
 export const PROVIDER_DOCS: Record<ProviderId, string> = {
@@ -71,44 +71,12 @@ export const PROVIDER_COST: Record<
 
 export const DEFAULT_CUSTOM_AGENTS: CustomAgentEndpoint[] = [
   {
-    id: "hermes-legion",
-    name: "Hermes Legion",
+    id: "local-agent",
+    name: "Local Agent",
     baseUrl: "http://localhost:8000/v1",
     apiKey: "",
-    model: "hermes-3",
-    description: "Local Legion Workstation Node",
-  },
-  {
-    id: "hermes-nukbox",
-    name: "Hermes Nukbox",
-    baseUrl: "http://nukbox.local:8000/v1",
-    apiKey: "",
-    model: "hermes-3-llama-3.1-8b",
-    description: "RTX 3060 Nukbox Personal Agent",
-  },
-  {
-    id: "hermes-spine",
-    name: "Hermes Spine",
-    baseUrl: "http://spine.local:8000/v1",
-    apiKey: "",
-    model: "hermes-3-llama-3.1-8b",
-    description: "Spine Personal Agent Node",
-  },
-  {
-    id: "sao-core",
-    name: "SAO Core",
-    baseUrl: "http://localhost:4177/v1",
-    apiKey: "",
-    model: "sao-agent",
-    description: "Savv Agent Office Orchestrator",
-  },
-  {
-    id: "openclaw-eve",
-    name: "OpenClaw / Eve",
-    baseUrl: "http://localhost:18789/v1",
-    apiKey: "",
     model: "default",
-    description: "OpenClaw & Eve Agent Gateway",
+    description: "Your own OpenAI-compatible local agent endpoint",
   },
 ];
 
@@ -193,7 +161,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   providers: defaultProviders(),
   customAgents: DEFAULT_CUSTOM_AGENTS,
-  activeCustomAgentId: "hermes-legion",
+  activeCustomAgentId: "local-agent",
   ragChunks: 5,
   maxContextTokens: 0,
   search: DEFAULT_SEARCH_SETTINGS,

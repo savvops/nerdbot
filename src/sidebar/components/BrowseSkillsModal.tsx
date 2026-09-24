@@ -121,7 +121,7 @@ export default function BrowseSkillsModal({
           <div>
             <div className="text-[13.5px] font-semibold">Shared Skills Hub</div>
             <div className="text-[11px] text-muted">
-              {skills.length} skills • Universal schema for Nerdbot, Master Control & SAO
+              {skills.length} skills • Universal skill schema
             </div>
           </div>
           <button
@@ -223,7 +223,7 @@ Instructions here...`}
             onCopy={handleCopySkill}
             copiedId={copiedId}
             onDelete={onDelete}
-            empty="No custom skills yet. Create one or import from Master Control/SAO!"
+            empty="No custom skills yet. Create one or import one!"
           />
         </div>
 

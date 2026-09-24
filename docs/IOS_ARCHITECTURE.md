@@ -83,9 +83,8 @@ A dedicated iOS browser app gives Nelson unconstrained control over the UI, pers
                 ▼                              ▼
 ┌───────────────────────────────┐ ┌───────────────────────────┐
 │     WKUserContentController   │ │   Networking & Agents     │
-│  - Injects domEngine.bundle.js│ │  - Hermes Nukbox          │
-│  - Dispatches actions via JS  │ │  - Hermes Spine / Legion  │
-│  - Receives DOM scan JSON     │ │  - SAO Core (Port 4177)   │
+│  - Injects domEngine.bundle.js│ │  - Local agent node        │
+│  - Dispatches actions via JS  │ │  - Agent core (Port 4177)   │
 └───────────────────────────────┘ └───────────────────────────┘
 ```
 
@@ -144,12 +143,12 @@ class BrowserCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler
 
 ## 5. Connecting Mobile Nerdbot to Personal Agents
 
-Mobile devices leave local Wi-Fi networks, requiring secure remote access to Nelson's agent grid:
+Mobile devices leave local Wi-Fi networks, requiring secure remote access to your agent endpoints:
 1. **Tailscale Mesh**:
-   - Install Tailscale on iPhone and agent nodes (`nukbox`, `spine`, `legion`).
-   - Nerdbot iOS connects directly to `http://nukbox:8000/v1` or `http://spine:8000/v1` with end-to-end WireGuard encryption.
+   - Install Tailscale on the iPhone and each agent node.
+   - Nerdbot iOS connects directly to `http://<node>:8000/v1` with end-to-end WireGuard encryption.
 2. **Cloudflare Zero Trust Tunnel**:
-   - Expose agent endpoints via secure tunnels (e.g. `https://hermes.savvops.ai/v1`).
+   - Expose agent endpoints via secure tunnels (e.g. `https://agents.example.com/v1`).
    - Use Nerdbot's custom bearer token support in Settings for authentication.
 
 ---

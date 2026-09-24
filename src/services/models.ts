@@ -315,9 +315,8 @@ export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
   ollama: fallbackList("ollama", []),
   anthropic: fallbackList("anthropic", ["claude-opus-4-5"]),
   custom_agent: fallbackList("custom_agent", [
-    "hermes-3",
-    "hermes-3-llama-3.1-8b",
-    "sao-agent",
+    "default",
+    "llama-3.1-8b",
     "qwen2.5-coder",
   ]),
 };

@@ -62,3 +62,11 @@ Dark/light/system themes use CSS custom properties (`--nb-*` variables) toggled 
 ### Canvas Feature
 
 `src/canvas/` renders a split-pane HTML/CSS/JS editor + sandboxed iframe preview. Code is stored in Chrome storage and loaded when the canvas panel opens.
+
+## Open-Core Boundary (Public Repo)
+
+This repository is the public engine. The private playbook lives elsewhere:
+
+- Custom prompts, skills, personas/souls, and playbook content go in the private `nerdbot-playbook` repo or in browser local storage (via the Skills UI import). **Never commit them here.**
+- Do not add new `BUILTIN_SKILLS` entries containing personal tactics or prompt tricks. Built-ins stay generic.
+- Do not reference internal tooling or infrastructure names in user-facing copy, comments, or docs. Environment IDs (`nerdbot`, `master_control`, `sao`) are functional schema keys shared with private systems — do not rename them.

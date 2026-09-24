@@ -649,7 +649,7 @@ export default function SettingsPanel({
                         <span>Multi-Node Agent Grid</span>
                       </div>
                       <div className="text-[10.5px] text-soft">
-                        Switch between Hermes Legion, Nukbox, Spine, SAO Core & custom endpoints.
+                        Switch between your configured agent endpoints.
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -723,7 +723,7 @@ export default function SettingsPanel({
                         <input
                           value={activeAgent?.name || ""}
                           onChange={(e) => updateActiveAgent({ name: e.target.value })}
-                          placeholder="e.g. Hermes Nukbox"
+                          placeholder="e.g. Local agent"
                           className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12px] outline-none"
                         />
                       </Field>
@@ -770,7 +770,7 @@ export default function SettingsPanel({
                         <input
                           value={activeAgent?.model || ""}
                           onChange={(e) => updateActiveAgent({ model: e.target.value })}
-                          placeholder="e.g. default, hermes-3"
+                          placeholder="e.g. default, llama-3.1-8b"
                           className="flex-1 bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
                         />
                         <button
@@ -1426,7 +1426,7 @@ export default function SettingsPanel({
                       value={facts}
                       onChange={(e) => setFacts(e.target.value)}
                       rows={3}
-                      placeholder="e.g. Working on legion, prefers TypeScript, uses Tailwind…"
+                      placeholder="e.g. prefers TypeScript, uses Tailwind…"
                       className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[11.5px] outline-none resize-none font-mono"
                     />
                   </div>

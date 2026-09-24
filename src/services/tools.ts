@@ -212,7 +212,7 @@ export const ALL_TOOLS_SCHEMA = [
     function: {
       name: "browser_extract_session",
       description:
-        "Extract authenticated session cookies, headers, and active URL from the current browser tab to generate ready-to-run cURL or Python CLI commands for terminal and Master Control.",
+        "Extract authenticated session cookies, headers, and active URL from the current browser tab to generate ready-to-run cURL or Python CLI commands for the terminal.",
       parameters: {
         type: "object",
         properties: {
@@ -437,7 +437,7 @@ print("Response preview:", response.text[:500])
         }
 
         return `# Authenticated cURL Command for ${title || targetUrl}
-# Run this directly in Master Control or your terminal:
+# Run this directly in your terminal:
 curl -X GET ${JSON.stringify(targetUrl)} \\
   -H "User-Agent: ${navigator.userAgent}" \\
   -H "Cookie: ${cookieHeader}" \\

@@ -119,7 +119,7 @@ export interface Settings {
   webSearch: boolean;
   theme: "dark" | "light" | "system";
   providers: Record<ProviderId, ProviderConfig>;
-  /** Configured Custom Agents (e.g. Hermes Nukbox, Hermes Spine, Hermes Legion, SAO Core, Eve). */
+  /** Configured custom agent endpoints (e.g. a local agent runtime). */
   customAgents?: CustomAgentEndpoint[];
   /** Active Custom Agent ID when activeProvider is 'custom_agent'. */
   activeCustomAgentId?: string;

@@ -1,6 +1,6 @@
 /**
  * Nerdbot Reflex & Safety Engine (System 1)
- * Inspired by Laya architecture (conversation 5aa32094-910e-4135-802f-fbfc6cd0c5df)
+ * Inspired by Laya architecture
  *
  * Provides:
  * - Sub-50ms target element disambiguation

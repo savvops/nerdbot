@@ -246,7 +246,7 @@ async function streamAnthropic(req: StreamRequest): Promise<string> {
 
   const url = `${cfg.baseUrl.replace(/\/$/, '')}/messages`;
 
-  // Build Anthropic message array; mark last 3 with cache_control (Hermes breakpoint strategy)
+  // Build Anthropic message array; mark last 3 with cache_control (cache breakpoint strategy)
   const nonSystem = messages.filter((m) => m.role !== 'system');
   const anthropicMessages = nonSystem.map((m, idx) => {
     const isInLastThree = idx >= nonSystem.length - 3;

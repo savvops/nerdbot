@@ -1,6 +1,5 @@
 /**
  * Nerdbot DOM Automation Engine
- * Adapted from SAO Browser (savvops/sao-browser)
  * 
  * Features:
  * - Interactive element scanning & accessible name computation

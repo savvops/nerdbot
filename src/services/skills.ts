@@ -69,9 +69,9 @@ export const BUILTIN_SKILLS: Skill[] = [
     id: 'builtin-cli-replay',
     name: 'Extract Session / cURL',
     emoji: '💻',
-    description: 'Convert active browser tab session into executable cURL / CLI commands for terminal & Master Control.',
+    description: 'Convert active browser tab session into executable cURL / CLI commands for the terminal.',
     instructions:
-      'Analyze the active page URL and authenticated session context. Formulate a clean, ready-to-run cURL command or Python requests script that replicates this authenticated session, including relevant headers, cookies, and body format. Explain how to run it directly in Master Control or the terminal.',
+      'Analyze the active page URL and authenticated session context. Formulate a clean, ready-to-run cURL command or Python requests script that replicates this authenticated session, including relevant headers, cookies, and body format. Explain how to run it directly in the terminal.',
     tools: ['browser', 'cli'],
     environments: ['nerdbot', 'master_control', 'sao'],
     builtin: true,
@@ -228,7 +228,7 @@ export async function exportAllSkillsAsJson(): Promise<string> {
   return JSON.stringify(all, null, 2);
 }
 
-/** Export a skill as Antigravity / SAO SKILL.md format (YAML frontmatter + markdown) */
+/** Export a skill as SKILL.md format (YAML frontmatter + markdown) */
 export function exportSkillAsMarkdown(skill: Skill): string {
   const lines: string[] = ['---'];
   lines.push(`name: "${skill.name.replace(/"/g, '\\"')}"`);
