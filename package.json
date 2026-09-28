@@ -32,6 +32,8 @@
     "test:integrations": "node scripts/verify-integrations.mjs",
     "dev": "vite build --watch --mode development",
     "build": "tsc --noEmit && vite build",
+    "build:firefox": "npm run build && node scripts/package-firefox.mjs",
+    "package:firefox": "node scripts/package-firefox.mjs",
     "preview": "vite preview",
     "package": "npm run build && node scripts/package-extension.mjs"
   },
