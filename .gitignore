@@ -28,3 +28,6 @@ store-assets/
 
 # Store upload packages
 nerdbot-v*.zip
+nerdbot-firefox-v*.zip
+*.xpi
+dist-firefox/
