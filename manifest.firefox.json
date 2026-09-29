@@ -37,8 +37,8 @@
   "commands": {
     "_execute_sidebar_action": {
       "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
+        "default": "Alt+Shift+N",
+        "mac": "Alt+Shift+N"
       },
       "description": "Open Nerdbot Sidebar"
     },
