@@ -13,9 +13,18 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.action?.onClicked?.addListener(async (tab) => {
+  const firefoxBrowser = (globalThis as any).browser;
+  if (firefoxBrowser?.sidebarAction?.open) {
+    try {
+      await firefoxBrowser.sidebarAction.open();
+      return;
+    } catch {
+      /* fallback to chrome.sidePanel */
+    }
+  }
   if (tab.windowId !== undefined) {
     try {
-      await chrome.sidePanel.open({ windowId: tab.windowId });
+      await chrome.sidePanel?.open?.({ windowId: tab.windowId });
     } catch {
       /* no-op */
     }
@@ -37,7 +46,7 @@ chrome.commands?.onCommand?.addListener(async (command) => {
 });
 
 const PROTECTED_URL_REGEX =
-  /^(chrome|chrome-extension|edge|about|devtools|view-source):|^https:\/\/chromewebstore\.google\.com\//i;
+  /^(chrome|chrome-extension|moz-extension|edge|about|devtools|view-source):|^https:\/\/(chromewebstore\.google\.com|addons\.mozilla\.org)\//i;
 
 type Msg =
   | { type: 'BROWSER_CONTROL'; payload: Record<string, unknown> }
@@ -109,7 +118,7 @@ chrome.runtime.onMessage.addListener((message: Msg, _sender, sendResponse) => {
       if (message.type === 'LIST_TABS') {
         const tabs = await chrome.tabs.query({ currentWindow: true });
         const list = tabs
-          .filter((t) => t.id != null && t.url && !t.url.startsWith('chrome://'))
+          .filter((t) => t.id != null && t.url && !PROTECTED_URL_REGEX.test(t.url))
           .map((t) => ({ tabId: t.id!, url: t.url!, title: t.title || '' }));
         sendResponse({ ok: true, data: list });
         return;

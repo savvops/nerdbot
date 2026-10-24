@@ -26,6 +26,7 @@
     "anthropic"
   ],
   "scripts": {
+    "test": "vitest run --config vitest.config.ts",
     "test:sync": "vitest run --config vitest.config.ts",
     "mobile": "node scripts/mobile-server.mjs",
     "bridge": "node bridge/legacy-server.mjs",

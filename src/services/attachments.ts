@@ -1,4 +1,5 @@
 import { uid } from './storage';
+import { controlState, controlCommand } from './browserControl';
 import type { Attachment } from './types';
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB cap per attachment
@@ -75,7 +76,6 @@ export async function extractPdfText(file: File | Blob): Promise<string> {
 
 export async function captureScreenshotAttachment(): Promise<Attachment> {
   if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
-    const { controlState, controlCommand } = await import('./browserControl');
     const target = controlState();
     if (!target) throw new Error('Choose Control this tab before capturing a PC screenshot.');
     const dataUrl = await controlCommand({ op: 'screenshot', session: target.session });

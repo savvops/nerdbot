@@ -24,7 +24,7 @@ function pageOperation(operation: string, args: Record<string, unknown>) {
     __nerdbotControl?: { id: string; url: string; elements: Element[] };
   };
   if (operation === 'observe') {
-    const elements = Array.from(document.querySelectorAll('a[href],button,input,textarea,select,[role="button"],[contenteditable="true"]'))
+    const elements = Array.from(document.querySelectorAll('a[href],button,input,textarea,select,summary,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="switch"],[role="combobox"],[contenteditable="true"]'))
       .filter((el) => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
@@ -64,19 +64,28 @@ function pageOperation(operation: string, args: Record<string, unknown>) {
   if (operation === 'click') {
     if (!(el instanceof HTMLElement)) throw new Error('Element is not clickable.');
     if (el instanceof HTMLAnchorElement) {
-      if (!['http:', 'https:'].includes(new URL(el.href).protocol)) throw new Error('This link is not a website.');
+      const resolvedUrl = new URL(el.getAttribute('href') || el.href, location.href);
+      if (!['http:', 'https:'].includes(resolvedUrl.protocol)) throw new Error('This link is not a website.');
       // Keep ordinary links in the bound tab; do not follow popup tabs automatically.
       el.target = '_self';
     }
     el.click();
   } else if (operation === 'fill') {
     if (typeof args.text !== 'string' || args.text.length > 12000) throw new Error('Invalid field text.');
-    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) throw new Error('Only text inputs and text areas are supported.');
-    if (el.disabled || el.readOnly) throw new Error('This field is not editable.');
-    const prototype = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-    Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(el, args.text);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      if (el.disabled || el.readOnly) throw new Error('This field is not editable.');
+      const prototype = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(prototype, 'value')?.set?.call(el, args.text);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (el instanceof HTMLElement && el.isContentEditable) {
+      el.focus();
+      el.textContent = args.text;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      throw new Error('Only text inputs, text areas, and contenteditable fields are supported.');
+    }
   } else throw new Error('Unsupported browser action.');
   state.__nerdbotControl = undefined;
   return { ok: true, message: 'Action dispatched. Observe the page to verify the result.' };
