@@ -24,3 +24,5 @@ Implementation and operational details: [mobile and experimental providers](docs
 - [x] Add linked-tab screenshot evidence and thumbnail metadata, navigate-then-observe, preserve binding after transient action errors, repeated-command guard and a text-answer pass without tool history. Deployed to both Legion folders; 22 file hashes verified.
 - [x] Promote Jev from a manual experiment to confidence-gated smart routing, with route-specific tool exposure and normal-chat fallback.
 - [x] Sync project-folder metadata and chat-to-project assignments through Convex; knowledge files and embeddings remain device-local. Backend and both Legion frontends deployed.
+- [x] Add Firefox MV3 support: sidebar action, Alt+Shift+N shortcut, package scripts, XPI packaging, and PR #2 opened.
+
