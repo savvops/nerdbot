@@ -30,11 +30,11 @@ export default function ModelSelect({ value, models, loading, onChange, placehol
           onChange={(e) => onChange(e.target.value)}
           autoFocus
           placeholder={placeholder}
-          className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+          className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs outline-none"
         />
         <button
           onClick={() => setCustom(false)}
-          className="text-[10.5px] text-soft hover:text-ink"
+          className="text-xs text-soft hover:text-ink"
         >
           ↩ list
         </button>
@@ -54,7 +54,7 @@ export default function ModelSelect({ value, models, loading, onChange, placehol
         }
         onChange(next);
       }}
-      className={`w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none${
+      className={`w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs outline-none${
         loading ? " opacity-60" : ""
       }`}
     >

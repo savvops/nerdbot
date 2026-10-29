@@ -510,8 +510,8 @@ export default function SettingsPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-bg/70 shrink-0">
           <div>
-            <div className="text-[13.5px] font-semibold text-ink">Settings</div>
-            <div className="text-[11px] text-muted">Manage models & keys, vault & personas</div>
+            <div className="text-sm font-semibold text-ink">Settings</div>
+            <div className="text-xs text-muted">Manage models & keys, vault & personas</div>
           </div>
           <button
             onClick={onClose}
@@ -570,7 +570,7 @@ export default function SettingsPanel({
                       activeProvider: e.target.value as ProviderId,
                     })
                   }
-                  className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[13px] outline-none"
+                  className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs outline-none"
                 >
                   {PROVIDER_ORDER.map((id) => (
                     <option key={id} value={id}>
@@ -578,7 +578,7 @@ export default function SettingsPanel({
                     </option>
                   ))}
                 </select>
-                <div className="mt-1 text-[11px] text-soft">
+                <div className="mt-1 text-xs text-soft">
                   {PROVIDER_RECOMMENDATIONS[settings.activeProvider]}
                 </div>
               </Field>
@@ -588,11 +588,11 @@ export default function SettingsPanel({
                 <div className="rounded-xl border border-border bg-bg p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-[12.5px] font-medium text-ink flex items-center gap-1.5">
+                      <div className="text-xs font-medium text-ink flex items-center gap-1.5">
                         <Server size={14} className="text-accent" />
                         <span>Multi-Node Agent Grid</span>
                       </div>
-                      <div className="text-[10.5px] text-soft">
+                      <div className="text-xs text-soft">
                         Switch between Hermes Legion, Nukbox, Spine, SAO Core & custom endpoints.
                       </div>
                     </div>
@@ -600,7 +600,7 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         onClick={addCustomAgent}
-                        className="px-2 py-1 text-[11px] rounded bg-elevated border border-border hover:border-accent text-ink flex items-center gap-1"
+                        className="px-2 py-1 text-xs rounded bg-elevated border border-border hover:border-accent text-ink flex items-center gap-1"
                         title="Add a new custom node"
                       >
                         <Plus size={11} /> Add Node
@@ -635,10 +635,10 @@ export default function SettingsPanel({
                               : "bg-surface border-border text-muted hover:text-ink hover:bg-elevated"
                           }`}
                         >
-                          <div className="font-semibold text-[11.5px] truncate">
+                          <div className="font-semibold text-xs truncate">
                             {agent.name}
                           </div>
-                          <div className="text-[10px] text-soft truncate font-mono">
+                          <div className="text-[11px] text-soft truncate font-mono">
                             {agent.baseUrl.replace(/^https?:\/\//, "")}
                           </div>
                         </button>
@@ -648,14 +648,14 @@ export default function SettingsPanel({
 
                   <div className="pt-2 border-t border-border space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11.5px] font-medium text-ink">
+                      <span className="text-xs font-medium text-ink">
                         Node Configuration ({activeAgent?.name})
                       </span>
                       {customAgents.length > 1 && (
                         <button
                           type="button"
                           onClick={() => deleteCustomAgent(activeAgent?.id || "")}
-                          className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1"
+                          className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
                         >
                           <Trash2 size={11} /> Remove Node
                         </button>
@@ -668,7 +668,7 @@ export default function SettingsPanel({
                           value={activeAgent?.name || ""}
                           onChange={(e) => updateActiveAgent({ name: e.target.value })}
                           placeholder="e.g. Hermes Nukbox"
-                          className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12px] outline-none"
+                          className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none"
                         />
                       </Field>
                       <Field label="Node Note">
@@ -676,7 +676,7 @@ export default function SettingsPanel({
                           value={activeAgent?.description || ""}
                           onChange={(e) => updateActiveAgent({ description: e.target.value })}
                           placeholder="e.g. RTX 3060 Node"
-                          className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12px] outline-none"
+                          className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none"
                         />
                       </Field>
                     </div>
@@ -686,7 +686,7 @@ export default function SettingsPanel({
                         value={activeAgent?.baseUrl || ""}
                         onChange={(e) => updateActiveAgent({ baseUrl: e.target.value })}
                         placeholder="http://localhost:8000/v1"
-                        className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
+                        className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none"
                       />
                     </Field>
 
@@ -697,7 +697,7 @@ export default function SettingsPanel({
                           value={activeAgent?.apiKey || ""}
                           onChange={(e) => updateActiveAgent({ apiKey: e.target.value })}
                           placeholder="Optional for LAN / local nodes"
-                          className="flex-1 py-1.5 text-[12px] font-mono outline-none bg-transparent"
+                          className="flex-1 py-1.5 text-xs font-mono outline-none bg-transparent"
                         />
                         <button
                           type="button"
@@ -715,7 +715,7 @@ export default function SettingsPanel({
                           value={activeAgent?.model || ""}
                           onChange={(e) => updateActiveAgent({ model: e.target.value })}
                           placeholder="e.g. default, hermes-3"
-                          className="flex-1 bg-surface border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
+                          className="flex-1 bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none"
                         />
                         <button
                           type="button"
@@ -758,7 +758,7 @@ export default function SettingsPanel({
                             ? "Not required"
                             : "sk-…"
                         }
-                        className="flex-1 py-2 text-[12.5px] font-mono outline-none bg-transparent"
+                        className="flex-1 py-2 text-xs font-mono outline-none bg-transparent"
                       />
                       <button
                         type="button"
@@ -774,7 +774,7 @@ export default function SettingsPanel({
                     <input
                       value={provider.baseUrl}
                       onChange={(e) => updateProvider({ baseUrl: e.target.value })}
-                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] font-mono outline-none"
+                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs font-mono outline-none"
                     />
                   </Field>
                 </>
@@ -784,9 +784,9 @@ export default function SettingsPanel({
               <div className="rounded-xl border border-border bg-bg p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[12px] font-medium text-ink">Provider Connection</div>
+                    <div className="text-xs font-medium text-ink">Provider Connection</div>
                     <div
-                      className={`mt-0.5 text-[10.5px] ${
+                      className={`mt-0.5 text-xs ${
                         providerHealth === "ready" ? "text-emerald-400" : "text-soft"
                       }`}
                     >
@@ -800,7 +800,7 @@ export default function SettingsPanel({
                     type="button"
                     onClick={checkProviderHealth}
                     disabled={providerHealth === "checking"}
-                    className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-ink hover:bg-elevated disabled:opacity-50 transition-colors"
+                    className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-ink hover:bg-elevated disabled:opacity-50 transition-colors"
                   >
                     {providerHealth === "checking" ? "Checking…" : "Test Connection"}
                   </button>
@@ -810,7 +810,7 @@ export default function SettingsPanel({
                     type="button"
                     onClick={scanLocalProviders}
                     disabled={localScanBusy}
-                    className="text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
+                    className="text-xs font-medium text-accent hover:underline disabled:opacity-50"
                   >
                     {localScanBusy ? "Checking localhost…" : "Scan for Ollama / LM Studio"}
                   </button>
@@ -819,7 +819,7 @@ export default function SettingsPanel({
                       {localScanResults.map((result) => (
                         <div
                           key={result.id}
-                          className="flex items-center justify-between gap-3 text-[10.5px]"
+                          className="flex items-center justify-between gap-3 text-xs"
                         >
                           <span className="text-ink">{PROVIDER_LABELS[result.id]}</span>
                           <span className={result.reachable ? "text-emerald-400" : "text-soft"}>
@@ -836,8 +836,8 @@ export default function SettingsPanel({
               <div className="border-t border-border pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-[12.5px] font-semibold text-ink">Active Models</div>
-                    <div className="text-[11px] text-muted">
+                    <div className="text-xs font-semibold text-ink">Active Models</div>
+                    <div className="text-xs text-muted">
                       Catalog for {PROVIDER_LABELS[settings.activeProvider]}
                     </div>
                   </div>
@@ -845,7 +845,7 @@ export default function SettingsPanel({
                     type="button"
                     onClick={refreshModels}
                     disabled={modelsLoading}
-                    className="px-2 py-1 text-[11px] rounded bg-elevated border border-border hover:border-accent text-ink flex items-center gap-1"
+                    className="px-2 py-1 text-xs rounded bg-elevated border border-border hover:border-accent text-ink flex items-center gap-1"
                   >
                     <RefreshCw size={11} className={modelsLoading ? "animate-spin" : ""} /> Refresh
                   </button>
@@ -927,7 +927,7 @@ export default function SettingsPanel({
                     value={provider.embeddingModel || ""}
                     onChange={(e) => updateProvider({ embeddingModel: e.target.value })}
                     placeholder="e.g. text-embedding-3-small, text-embedding-004"
-                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
+                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none"
                   />
                 </Field>
               </div>
@@ -969,14 +969,14 @@ export default function SettingsPanel({
 
               {/* Web Search Backend */}
               <div className="border-t border-border pt-4 space-y-3">
-                <div className="text-[12.5px] font-semibold text-ink">Web Search Backend</div>
+                <div className="text-xs font-semibold text-ink">Web Search Backend</div>
                 <Field label="Search Provider">
                   <select
                     value={settings.search?.provider || "duckduckgo"}
                     onChange={(e) =>
                       handleSearchProviderChange(e.target.value as SearchProviderId)
                     }
-                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs outline-none"
                   >
                     {SEARCH_PROVIDER_ORDER.map((id) => (
                       <option key={id} value={id}>
@@ -992,27 +992,27 @@ export default function SettingsPanel({
                       value={settings.search?.searxngUrl || ""}
                       onChange={(e) => updateSearch({ searxngUrl: e.target.value })}
                       placeholder="https://searx.example.com"
-                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
+                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-xs font-mono outline-none"
                     />
                   </Field>
                 )}
 
-                {searchHint && <div className="text-[11px] text-amber-400">{searchHint}</div>}
+                {searchHint && <div className="text-xs text-amber-400">{searchHint}</div>}
               </div>
 
               {/* Cloud Sync (Convex Account) */}
               <div className="border-t border-border pt-4 space-y-3">
-                <div className="text-[12.5px] font-semibold text-ink flex items-center gap-1.5">
+                <div className="text-xs font-semibold text-ink flex items-center gap-1.5">
                   <Cloud size={15} className={cloudAccount?.user ? "text-emerald-400" : "text-muted"} />
                   <span>Cloud Sync (Convex)</span>
                 </div>
                 <div className="rounded-xl border border-border bg-bg p-3.5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="text-[12.5px] font-semibold text-ink truncate">
+                      <div className="text-xs font-semibold text-ink truncate">
                         {cloudAccount?.user ? cloudAccount.user.email : "Local-only mode"}
                       </div>
-                      <div className="text-[11px] text-muted truncate">
+                      <div className="text-xs text-muted truncate">
                         {cloudAccount?.user
                           ? `${cloudAccount.status.message}${cloudAccount.status.pending ? ` · ${cloudAccount.status.pending} pending` : ""}`
                           : "Sync conversations & projects across PC, laptop & mobile."}
@@ -1022,7 +1022,7 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => cloudAccount.onSignOut()}
-                        className="px-2.5 py-1 rounded-lg border border-border text-[11.5px] text-muted hover:text-danger hover:bg-elevated transition-colors"
+                        className="px-2.5 py-1 rounded-lg border border-border text-xs text-muted hover:text-danger hover:bg-elevated transition-colors"
                       >
                         Sign out
                       </button>
@@ -1030,7 +1030,7 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         onClick={() => cloudAccount?.onSignIn()}
-                        className="px-3 py-1.5 rounded-lg bg-accent text-white text-[12px] font-medium hover:brightness-110 transition-colors"
+                        className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:brightness-110 transition-colors"
                       >
                         Sign in
                       </button>
@@ -1043,7 +1043,7 @@ export default function SettingsPanel({
                         <button
                           type="button"
                           onClick={() => cloudAccount.onRetry()}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/15 text-accent hover:bg-accent/20 text-[11.5px] font-medium transition-colors"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/15 text-accent hover:bg-accent/20 text-xs font-medium transition-colors"
                         >
                           <RefreshCw size={11} /> Retry sync
                         </button>
@@ -1052,7 +1052,7 @@ export default function SettingsPanel({
                         <button
                           type="button"
                           onClick={() => cloudAccount.onImportLocal()}
-                          className="px-2.5 py-1 rounded-lg bg-elevated hover:bg-border text-ink text-[11.5px] transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-elevated hover:bg-border text-ink text-xs transition-colors"
                         >
                           Import local chats & projects
                         </button>
@@ -1060,7 +1060,7 @@ export default function SettingsPanel({
                     </div>
                   )}
 
-                  <div className="text-[10.5px] text-soft leading-relaxed">
+                  <div className="text-xs text-soft leading-relaxed">
                     Zero-leakage policy: Provider API keys, local credentials vault secrets, and private files stay 100% on this PC and never sync to cloud.
                   </div>
                 </div>
@@ -1069,7 +1069,7 @@ export default function SettingsPanel({
               {/* Legacy PC Bridge */}
               <div className="border-t border-border pt-4">
                 <Field label="Legacy PC Bridge">
-                  <label className="flex items-start gap-2.5 rounded-lg border border-border bg-bg px-3 py-2.5 text-[12px] cursor-pointer">
+                  <label className="flex items-start gap-2.5 rounded-lg border border-border bg-bg px-3 py-2.5 text-xs cursor-pointer">
                     <input
                       type="checkbox"
                       checked={Boolean(settings.bridgeEnabled)}
@@ -1080,7 +1080,7 @@ export default function SettingsPanel({
                     />
                     <span>
                       <span className="block text-ink font-medium">Connect to localhost:3030</span>
-                      <span className="mt-0.5 block text-[10.5px] text-soft">
+                      <span className="mt-0.5 block text-xs text-soft">
                         Only enable if intentionally running <code>npm run bridge</code> on this PC. Cloud chat sync does not require it.
                       </span>
                     </span>
@@ -1095,14 +1095,14 @@ export default function SettingsPanel({
             <div className="space-y-4 animate-fade-in">
               {/* Security Banner */}
               <div className="rounded-xl border border-border bg-bg p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2 font-semibold text-[12.5px] text-ink">
+                <div className="flex items-center gap-2 font-semibold text-xs text-ink">
                   <Shield size={15} className="text-emerald-400" />
                   <span>Secure Local Credentials Vault</span>
                 </div>
-                <p className="text-[11.5px] text-muted leading-relaxed">
+                <p className="text-xs text-muted leading-relaxed">
                   Store sensitive API keys, tokens, and secrets locally in <code>chrome.storage.local</code>. Secrets are resolved in memory at execution time and <strong>never</strong> synced to Convex cloud or exposed in chat transcripts.
                 </p>
-                <div className="text-[11px] text-soft pt-1">
+                <div className="text-xs text-soft pt-1">
                   In chat: use <code>$SECRET&#123;KEY_NAME&#125;</code> or the Key button in the composer bar.
                 </div>
               </div>
@@ -1122,7 +1122,7 @@ export default function SettingsPanel({
                       setCredError("");
                       setIsEditingCred(true);
                     }}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-[11.5px] font-medium hover:brightness-110 transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-xs font-medium hover:brightness-110 transition-colors"
                   >
                     <Plus size={12} /> Add Secret
                   </button>
@@ -1201,7 +1201,7 @@ export default function SettingsPanel({
                 <div className="rounded-xl border border-dashed border-border p-6 text-center text-muted text-xs space-y-1">
                   <KeyRound size={24} className="mx-auto text-soft mb-2" />
                   <div className="font-medium text-ink">Vault is empty</div>
-                  <div className="text-soft text-[11px]">
+                  <div className="text-soft text-xs">
                     Add API keys or secrets to safely use them across chats without leaking them.
                   </div>
                 </div>
@@ -1223,7 +1223,7 @@ export default function SettingsPanel({
                               type="button"
                               onClick={() => copySecretTag(c.key)}
                               title="Copy $SECRET{...} tag for chat"
-                              className="px-1.5 py-0.5 rounded bg-elevated border border-border text-[10px] font-mono text-soft hover:text-accent hover:border-accent/40 transition-colors flex items-center gap-1"
+                              className="px-1.5 py-0.5 rounded bg-elevated border border-border text-[11px] font-mono text-soft hover:text-accent hover:border-accent/40 transition-colors flex items-center gap-1"
                             >
                               {copiedKey === c.key ? (
                                 <>
@@ -1263,10 +1263,10 @@ export default function SettingsPanel({
                         </div>
 
                         {c.description && (
-                          <div className="text-[11px] text-muted">{c.description}</div>
+                          <div className="text-xs text-muted">{c.description}</div>
                         )}
 
-                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50 text-[11px]">
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50 text-xs">
                           <div className="font-mono text-soft truncate flex-1">
                             {isRevealed ? c.value : "••••••••••••••••"}
                           </div>
@@ -1315,14 +1315,14 @@ export default function SettingsPanel({
             <div className="space-y-5 animate-fade-in">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[12.5px] font-semibold text-ink">Personas (Souls)</div>
-                  <div className="text-[11px] text-muted">Customize Nerdbot’s tone and behavior</div>
+                  <div className="text-xs font-semibold text-ink">Personas (Souls)</div>
+                  <div className="text-xs text-muted">Customize Nerdbot’s tone and behavior</div>
                 </div>
                 {!isCreatingSoul && !editingSoulId && (
                   <button
                     type="button"
                     onClick={startCreateSoul}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-[11.5px] font-medium hover:brightness-110 transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent text-white text-xs font-medium hover:brightness-110 transition-colors"
                   >
                     <Plus size={12} /> New Persona
                   </button>
@@ -1336,7 +1336,7 @@ export default function SettingsPanel({
                   onChange={(e) =>
                     onChange({ ...settings, activeSoulId: e.target.value })
                   }
-                  className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[12.5px] outline-none"
+                  className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs outline-none"
                 >
                   <option value="default">🤖 Nerdbot (Default)</option>
                   {souls.map((s) => (
@@ -1364,7 +1364,7 @@ export default function SettingsPanel({
               {/* Souls List */}
               {souls.length > 0 && !isCreatingSoul && !editingSoulId && (
                 <div className="space-y-1.5">
-                  <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                  <div className="text-xs font-semibold text-muted uppercase tracking-wider">
                     Custom Personas
                   </div>
                   {souls.map((s) => (
@@ -1374,7 +1374,7 @@ export default function SettingsPanel({
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-base">{s.emoji}</span>
-                        <span className="text-[12.5px] font-medium text-ink truncate">{s.name}</span>
+                        <span className="text-xs font-medium text-ink truncate">{s.name}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -1401,18 +1401,18 @@ export default function SettingsPanel({
 
               {/* Memory Provider */}
               <div className="border-t border-border pt-4 space-y-3">
-                <div className="text-[12.5px] font-semibold text-ink">Long-Term Memory</div>
-                <div className="text-[11px] text-muted">
+                <div className="text-xs font-semibold text-ink">Long-Term Memory</div>
+                <div className="text-xs text-muted">
                   Injected into every system prompt. Edit to teach Nerdbot persistent facts about you.
                 </div>
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11.5px] text-muted font-medium">Long-term facts</label>
+                      <label className="text-xs text-muted font-medium">Long-term facts</label>
                       <button
                         type="button"
                         onClick={saveFacts}
-                        className="text-[11px] text-accent hover:underline flex items-center gap-1"
+                        className="text-xs text-accent hover:underline flex items-center gap-1"
                       >
                         {factsSaved ? <><Check size={10} className="text-emerald-400" /> Saved</> : "Save"}
                       </button>
@@ -1422,17 +1422,17 @@ export default function SettingsPanel({
                       onChange={(e) => setFacts(e.target.value)}
                       rows={3}
                       placeholder="e.g. Working on legion, prefers TypeScript, uses Tailwind…"
-                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[11.5px] outline-none resize-none font-mono"
+                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none resize-none font-mono"
                     />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11.5px] text-muted font-medium">User profile</label>
+                      <label className="text-xs text-muted font-medium">User profile</label>
                       <button
                         type="button"
                         onClick={saveUserProfile}
-                        className="text-[11px] text-accent hover:underline flex items-center gap-1"
+                        className="text-xs text-accent hover:underline flex items-center gap-1"
                       >
                         {userSaved ? <><Check size={10} className="text-emerald-400" /> Saved</> : "Save"}
                       </button>
@@ -1442,7 +1442,7 @@ export default function SettingsPanel({
                       onChange={(e) => setUserProfile(e.target.value)}
                       rows={2}
                       placeholder="e.g. Name: Savv, Role: Systems & AI Engineer…"
-                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[11.5px] outline-none resize-none font-mono"
+                      className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none resize-none font-mono"
                     />
                   </div>
                 </div>
@@ -1470,7 +1470,7 @@ export default function SettingsPanel({
                             root.classList.toggle("light", t === "light");
                           }
                         }}
-                        className={`px-2.5 py-2 text-[12px] rounded-lg border transition-colors capitalize ${
+                        className={`px-2.5 py-2 text-xs rounded-lg border transition-colors capitalize ${
                           settings.theme === t
                             ? "bg-accent/15 border-accent text-ink font-medium"
                             : "bg-bg border-border text-muted hover:text-ink"
@@ -1488,7 +1488,7 @@ export default function SettingsPanel({
                 <button
                   type="button"
                   onClick={onReportBug}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border bg-bg text-muted hover:text-ink hover:border-accent/40 text-[12px] transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border bg-bg text-muted hover:text-ink hover:border-accent/40 text-xs transition-colors"
                 >
                   <Bug size={14} className="text-accent" />
                   <span>Report an Issue or Bug</span>
@@ -1499,7 +1499,7 @@ export default function SettingsPanel({
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2.5 border-t border-border bg-bg/80 text-[11px] text-muted shrink-0 flex items-center justify-between">
+        <div className="px-4 py-2.5 border-t border-border bg-bg/80 text-xs text-muted shrink-0 flex items-center justify-between">
           <span>Nerdbot v1.0 · Sovereign AI</span>
           <span className="text-soft">Saved locally</span>
         </div>
@@ -1541,7 +1541,7 @@ function SoulEditForm({
           value={name}
           onChange={(e) => onName(e.target.value)}
           placeholder="Persona name"
-          className="flex-1 bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[12px] outline-none"
+          className="flex-1 bg-bg border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none"
         />
       </div>
       <textarea
@@ -1549,13 +1549,13 @@ function SoulEditForm({
         onChange={(e) => onPrompt(e.target.value)}
         rows={5}
         placeholder="Describe how this persona should behave…"
-        className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-[11.5px] outline-none resize-none font-mono"
+        className="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-xs outline-none resize-none font-mono"
       />
       <div className="flex gap-2 justify-end">
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1.5 text-[11.5px] text-muted hover:text-ink border border-border rounded-lg"
+          className="px-3 py-1.5 text-xs text-muted hover:text-ink border border-border rounded-lg"
         >
           Cancel
         </button>
@@ -1563,7 +1563,7 @@ function SoulEditForm({
           type="button"
           onClick={onSave}
           disabled={!name.trim() || !prompt.trim()}
-          className="px-3 py-1.5 text-[11.5px] bg-accent text-white rounded-lg font-medium hover:brightness-110 disabled:opacity-40"
+          className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-medium hover:brightness-110 disabled:opacity-40"
         >
           Save Persona
         </button>
@@ -1584,8 +1584,8 @@ function Field({
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <label className="text-[11.5px] text-muted font-medium">{label}</label>
-        {hint && <span className="text-[11px]">{hint}</span>}
+        <label className="text-xs text-muted font-medium">{label}</label>
+        {hint && <span className="text-xs">{hint}</span>}
       </div>
       {children}
     </div>
