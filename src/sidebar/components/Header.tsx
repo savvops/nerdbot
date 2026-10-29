@@ -18,7 +18,7 @@ interface Props {
   onToggleDrawer: () => void;
   onNewChat: () => void;
   onOpenSettings: () => void;
-  onOpenSettingsTab?: (tab: 'connections' | 'vault' | 'models' | 'personas') => void;
+  onOpenSettingsTab?: (tab: 'models' | 'connections' | 'vault' | 'personas') => void;
   onClose?: () => void;
   onCaptureScreenshot: () => void;
   visionCapable: boolean;
@@ -189,12 +189,12 @@ export default function Header({
                 {onOpenSettingsTab && (
                   <button
                     onClick={() => {
-                      onOpenSettingsTab('connections');
+                      onOpenSettingsTab('models');
                       setCloudMenuOpen(false);
                     }}
                     className="text-accent hover:underline text-[11px]"
                   >
-                    Connections
+                    Models & Keys
                   </button>
                 )}
                 <button

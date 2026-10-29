@@ -146,7 +146,7 @@ export default function App({
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState<
     "connections" | "vault" | "models" | "personas"
-  >("connections");
+  >("models");
   const [chat, setChat] = useState<Chat>(() => emptyChat());
   const chatRef = useRef(chat);
   chatRef.current = chat;
@@ -1183,7 +1183,7 @@ export default function App({
         onToggleDrawer={() => setDrawerOpen(true)}
         onNewChat={() => handleNewChat({ keepProject: true })}
         onOpenSettings={() => {
-          setSettingsInitialTab("connections");
+          setSettingsInitialTab("models");
           setSettingsOpen(true);
         }}
         onOpenSettingsTab={(tab) => {

@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Server,
   RotateCcw,
-  Link2,
   Shield,
   Cpu,
   Bot,
@@ -81,10 +80,17 @@ interface Props {
   onSoulsChange: (souls: Soul[]) => void;
   onReportBug: () => void;
   cloudAccount?: CloudAccountInfo;
-  initialTab?: "connections" | "vault" | "models" | "personas";
+  initialTab?: "models" | "connections" | "vault" | "personas";
 }
 
-type SettingsTab = "connections" | "vault" | "models" | "personas";
+type SettingsTab = "models" | "vault" | "personas";
+
+const normalizeTab = (tab?: string): SettingsTab => {
+  if (tab === "connections" || tab === "models") return "models";
+  if (tab === "vault") return "vault";
+  if (tab === "personas") return "personas";
+  return "models";
+};
 
 const PROVIDER_ORDER: ProviderId[] = [
   "gemini",
@@ -118,9 +124,9 @@ export default function SettingsPanel({
   onDeleteSoul,
   onReportBug,
   cloudAccount,
-  initialTab = "connections",
+  initialTab = "models",
 }: Props) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => normalizeTab(initialTab));
   const [showKey, setShowKey] = useState(false);
   const [providerHealth, setProviderHealth] = useState<
     "idle" | "checking" | "ready" | "error"
@@ -142,7 +148,7 @@ export default function SettingsPanel({
   const provider = settings.providers[settings.activeProvider];
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    if (initialTab) setActiveTab(normalizeTab(initialTab));
   }, [initialTab]);
 
   const loadVault = async () => {
@@ -505,7 +511,7 @@ export default function SettingsPanel({
         <div className="flex items-center justify-between px-4 h-12 border-b border-border bg-bg/70 shrink-0">
           <div>
             <div className="text-[13.5px] font-semibold text-ink">Settings</div>
-            <div className="text-[11px] text-muted">Manage connections, vault, models & personas</div>
+            <div className="text-[11px] text-muted">Manage models & keys, vault & personas</div>
           </div>
           <button
             onClick={onClose}
@@ -518,14 +524,14 @@ export default function SettingsPanel({
         {/* Tab Navigation */}
         <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-bg/40 overflow-x-auto text-xs shrink-0 no-scrollbar">
           <button
-            onClick={() => setActiveTab("connections")}
+            onClick={() => setActiveTab("models")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activeTab === "connections"
+              activeTab === "models"
                 ? "bg-elevated text-ink border border-border shadow-sm"
                 : "text-muted hover:text-ink hover:bg-elevated/50"
             }`}
           >
-            <Link2 size={13} /> Connections & Keys
+            <Cpu size={13} /> Models & Keys
           </button>
           <button
             onClick={() => setActiveTab("vault")}
@@ -536,16 +542,6 @@ export default function SettingsPanel({
             }`}
           >
             <Shield size={13} /> Credentials Vault
-          </button>
-          <button
-            onClick={() => setActiveTab("models")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activeTab === "models"
-                ? "bg-elevated text-ink border border-border shadow-sm"
-                : "text-muted hover:text-ink hover:bg-elevated/50"
-            }`}
-          >
-            <Cpu size={13} /> Models & Gen
           </button>
           <button
             onClick={() => setActiveTab("personas")}
@@ -561,8 +557,8 @@ export default function SettingsPanel({
 
         {/* Tab Content Body */}
         <div className="overflow-y-auto p-4 space-y-5 flex-1">
-          {/* TAB 1: CONNECTIONS & KEYS */}
-          {activeTab === "connections" && (
+          {/* TAB 1: MODELS & KEYS */}
+          {activeTab === "models" && (
             <div className="space-y-5 animate-fade-in">
               {/* Primary AI Provider */}
               <Field label="Active AI Provider">
@@ -586,58 +582,6 @@ export default function SettingsPanel({
                   {PROVIDER_RECOMMENDATIONS[settings.activeProvider]}
                 </div>
               </Field>
-
-              {/* Provider Health Check & Local Detection */}
-              <div className="rounded-xl border border-border bg-bg p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[12px] font-medium text-ink">Provider Connection</div>
-                    <div
-                      className={`mt-0.5 text-[10.5px] ${
-                        providerHealth === "ready" ? "text-emerald-400" : "text-soft"
-                      }`}
-                    >
-                      {providerHealthMessage ||
-                        (provider.id === "nvidia"
-                          ? "Checks model access with a one-token test request."
-                          : "Run a check to test network access to this endpoint.")}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={checkProviderHealth}
-                    disabled={providerHealth === "checking"}
-                    className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-ink hover:bg-elevated disabled:opacity-50 transition-colors"
-                  >
-                    {providerHealth === "checking" ? "Checking…" : "Test Connection"}
-                  </button>
-                </div>
-                <div className="mt-3 border-t border-border pt-2.5">
-                  <button
-                    type="button"
-                    onClick={scanLocalProviders}
-                    disabled={localScanBusy}
-                    className="text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
-                  >
-                    {localScanBusy ? "Checking localhost…" : "Scan for Ollama / LM Studio"}
-                  </button>
-                  {localScanResults.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {localScanResults.map((result) => (
-                        <div
-                          key={result.id}
-                          className="flex items-center justify-between gap-3 text-[10.5px]"
-                        >
-                          <span className="text-ink">{PROVIDER_LABELS[result.id]}</span>
-                          <span className={result.reachable ? "text-emerald-400" : "text-soft"}>
-                            {result.message}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
 
               {/* Custom Agent Fleet / Multi-Node Switcher */}
               {settings.activeProvider === "custom_agent" ? (
@@ -835,6 +779,193 @@ export default function SettingsPanel({
                   </Field>
                 </>
               )}
+
+              {/* Provider Health Check & Local Detection */}
+              <div className="rounded-xl border border-border bg-bg p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[12px] font-medium text-ink">Provider Connection</div>
+                    <div
+                      className={`mt-0.5 text-[10.5px] ${
+                        providerHealth === "ready" ? "text-emerald-400" : "text-soft"
+                      }`}
+                    >
+                      {providerHealthMessage ||
+                        (provider.id === "nvidia"
+                          ? "Checks model access with a one-token test request."
+                          : "Run a check to test network access to this endpoint.")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={checkProviderHealth}
+                    disabled={providerHealth === "checking"}
+                    className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-ink hover:bg-elevated disabled:opacity-50 transition-colors"
+                  >
+                    {providerHealth === "checking" ? "Checking…" : "Test Connection"}
+                  </button>
+                </div>
+                <div className="mt-3 border-t border-border pt-2.5">
+                  <button
+                    type="button"
+                    onClick={scanLocalProviders}
+                    disabled={localScanBusy}
+                    className="text-[11px] font-medium text-accent hover:underline disabled:opacity-50"
+                  >
+                    {localScanBusy ? "Checking localhost…" : "Scan for Ollama / LM Studio"}
+                  </button>
+                  {localScanResults.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {localScanResults.map((result) => (
+                        <div
+                          key={result.id}
+                          className="flex items-center justify-between gap-3 text-[10.5px]"
+                        >
+                          <span className="text-ink">{PROVIDER_LABELS[result.id]}</span>
+                          <span className={result.reachable ? "text-emerald-400" : "text-soft"}>
+                            {result.message}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Active Models & Catalogs */}
+              <div className="border-t border-border pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[12.5px] font-semibold text-ink">Active Models</div>
+                    <div className="text-[11px] text-muted">
+                      Catalog for {PROVIDER_LABELS[settings.activeProvider]}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshModels}
+                    disabled={modelsLoading}
+                    className="px-2 py-1 text-[11px] rounded bg-elevated border border-border hover:border-accent text-ink flex items-center gap-1"
+                  >
+                    <RefreshCw size={11} className={modelsLoading ? "animate-spin" : ""} /> Refresh
+                  </button>
+                </div>
+
+                {settings.activeProvider !== "custom_agent" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Fast model">
+                      <ModelSelect
+                        value={provider.fastModel}
+                        onChange={(v) => updateProvider({ fastModel: v })}
+                        models={modelList?.models || []}
+                        loading={modelsLoading}
+                        placeholder="Fast model"
+                      />
+                    </Field>
+                    <Field label="Quality model">
+                      <ModelSelect
+                        value={provider.qualityModel}
+                        onChange={(v) => updateProvider({ qualityModel: v })}
+                        models={modelList?.models || []}
+                        loading={modelsLoading}
+                        placeholder="Quality model"
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {/* Multimodal Models */}
+                {Boolean(modelList?.imageModels && modelList.imageModels.length > 0) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Fast image model">
+                      <ModelSelect
+                        value={provider.fastImageModel || ""}
+                        onChange={(v) => updateProvider({ fastImageModel: v })}
+                        models={modelList?.imageModels || []}
+                        loading={modelsLoading}
+                        placeholder="Image model"
+                      />
+                    </Field>
+                    <Field label="Quality image model">
+                      <ModelSelect
+                        value={provider.qualityImageModel || ""}
+                        onChange={(v) => updateProvider({ qualityImageModel: v })}
+                        models={modelList?.imageModels || []}
+                        loading={modelsLoading}
+                        placeholder="Quality image model"
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {Boolean(modelList?.audioModels && modelList.audioModels.length > 0) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Fast audio model">
+                      <ModelSelect
+                        value={provider.fastAudioModel || ""}
+                        onChange={(v) => updateProvider({ fastAudioModel: v })}
+                        models={modelList?.audioModels || []}
+                        loading={modelsLoading}
+                        placeholder="Audio model"
+                      />
+                    </Field>
+                    <Field label="Quality audio model">
+                      <ModelSelect
+                        value={provider.qualityAudioModel || ""}
+                        onChange={(v) => updateProvider({ qualityAudioModel: v })}
+                        models={modelList?.audioModels || []}
+                        loading={modelsLoading}
+                        placeholder="Quality audio model"
+                      />
+                    </Field>
+                  </div>
+                )}
+
+                {/* Embedding Model */}
+                <Field label="Embedding Model (Knowledge Base)">
+                  <input
+                    value={provider.embeddingModel || ""}
+                    onChange={(e) => updateProvider({ embeddingModel: e.target.value })}
+                    placeholder="e.g. text-embedding-3-small, text-embedding-004"
+                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
+                  />
+                </Field>
+              </div>
+
+              {/* Generation Controls */}
+              <div className="border-t border-border pt-4 space-y-4">
+                {/* Temperature */}
+                <Field
+                  label={`Temperature · ${settings.temperature.toFixed(2)}`}
+                  hint={
+                    <span className="text-soft">
+                      {settings.temperature < 0.3
+                        ? "Precise"
+                        : settings.temperature > 0.8
+                        ? "Creative"
+                        : "Balanced"}
+                    </span>
+                  }
+                >
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.5"
+                    step="0.05"
+                    value={settings.temperature}
+                    onChange={(e) =>
+                      onChange({
+                        ...settings,
+                        temperature: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full accent-[rgb(var(--nb-accent))]"
+                  />
+                </Field>
+
+                {/* Jev Reflex Experiment */}
+                <JevExperiment settings={settings} onChange={onChange} />
+              </div>
 
               {/* Web Search Backend */}
               <div className="border-t border-border pt-4 space-y-3">
@@ -1179,143 +1310,7 @@ export default function SettingsPanel({
             </div>
           )}
 
-          {/* TAB 3: MODELS & GENERATION */}
-          {activeTab === "models" && (
-            <div className="space-y-5 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[12.5px] font-semibold text-ink">Active Models</div>
-                  <div className="text-[11px] text-muted">
-                    Catalog for {PROVIDER_LABELS[settings.activeProvider]}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={refreshModels}
-                  disabled={modelsLoading}
-                  className="px-2 py-1 text-[11px] rounded bg-elevated border border-border hover:border-accent text-ink flex items-center gap-1"
-                >
-                  <RefreshCw size={11} className={modelsLoading ? "animate-spin" : ""} /> Refresh
-                </button>
-              </div>
-
-              {settings.activeProvider !== "custom_agent" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Fast model">
-                    <ModelSelect
-                      value={provider.fastModel}
-                      onChange={(v) => updateProvider({ fastModel: v })}
-                      models={modelList?.models || []}
-                      loading={modelsLoading}
-                      placeholder="Fast model"
-                    />
-                  </Field>
-                  <Field label="Quality model">
-                    <ModelSelect
-                      value={provider.qualityModel}
-                      onChange={(v) => updateProvider({ qualityModel: v })}
-                      models={modelList?.models || []}
-                      loading={modelsLoading}
-                      placeholder="Quality model"
-                    />
-                  </Field>
-                </div>
-              )}
-
-              {/* Multimodal Models */}
-              {Boolean(modelList?.imageModels && modelList.imageModels.length > 0) && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Fast image model">
-                    <ModelSelect
-                      value={provider.fastImageModel || ""}
-                      onChange={(v) => updateProvider({ fastImageModel: v })}
-                      models={modelList?.imageModels || []}
-                      loading={modelsLoading}
-                      placeholder="Image model"
-                    />
-                  </Field>
-                  <Field label="Quality image model">
-                    <ModelSelect
-                      value={provider.qualityImageModel || ""}
-                      onChange={(v) => updateProvider({ qualityImageModel: v })}
-                      models={modelList?.imageModels || []}
-                      loading={modelsLoading}
-                      placeholder="Quality image model"
-                    />
-                  </Field>
-                </div>
-              )}
-
-              {Boolean(modelList?.audioModels && modelList.audioModels.length > 0) && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Fast audio model">
-                    <ModelSelect
-                      value={provider.fastAudioModel || ""}
-                      onChange={(v) => updateProvider({ fastAudioModel: v })}
-                      models={modelList?.audioModels || []}
-                      loading={modelsLoading}
-                      placeholder="Audio model"
-                    />
-                  </Field>
-                  <Field label="Quality audio model">
-                    <ModelSelect
-                      value={provider.qualityAudioModel || ""}
-                      onChange={(v) => updateProvider({ qualityAudioModel: v })}
-                      models={modelList?.audioModels || []}
-                      loading={modelsLoading}
-                      placeholder="Quality audio model"
-                    />
-                  </Field>
-                </div>
-              )}
-
-              {/* Embedding Model */}
-              <Field label="Embedding Model (Knowledge Base)">
-                <input
-                  value={provider.embeddingModel || ""}
-                  onChange={(e) => updateProvider({ embeddingModel: e.target.value })}
-                  placeholder="e.g. text-embedding-3-small, text-embedding-004"
-                  className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-[12px] font-mono outline-none"
-                />
-              </Field>
-
-              {/* Temperature */}
-              <Field
-                label={`Temperature · ${settings.temperature.toFixed(2)}`}
-                hint={
-                  <span className="text-soft">
-                    {settings.temperature < 0.3
-                      ? "Precise"
-                      : settings.temperature > 0.8
-                      ? "Creative"
-                      : "Balanced"}
-                  </span>
-                }
-              >
-                <input
-                  type="range"
-                  min="0"
-                  max="1.5"
-                  step="0.05"
-                  value={settings.temperature}
-                  onChange={(e) =>
-                    onChange({
-                      ...settings,
-                      temperature: parseFloat(e.target.value),
-                    })
-                  }
-                  className="w-full accent-[rgb(var(--nb-accent))]"
-                />
-              </Field>
-
-              {/* Jev Reflex Experiment */}
-              <div className="border-t border-border pt-4">
-                <JevExperiment settings={settings} onChange={onChange} />
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: PERSONAS & MEMORY */}
+          {/* TAB 3: PERSONAS & MEMORY */}
           {activeTab === "personas" && (
             <div className="space-y-5 animate-fade-in">
               <div className="flex items-center justify-between">
